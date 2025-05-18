@@ -9,7 +9,8 @@ export function TabsList({ children, className = "", ...props }) {
   return (
     <TabsPrimitive.List
       className={
-        "flex w-full items-center justify-start border-b border-gray-200 " + className
+        "inline-flex items-center justify-start gap-2 rounded-md bg-gray-100 p-1 " +
+        "text-muted-foreground shadow-inner " + className
       }
       {...props}
     >
@@ -22,10 +23,11 @@ export function TabsTrigger({ children, className = "", ...props }) {
   return (
     <TabsPrimitive.Trigger
       className={
-        "px-4 py-2 -mb-px border-b-2 text-sm font-medium text-gray-600 " +
-        "data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 " +
-        "hover:text-blue-500 hover:border-blue-300 " +
-        "transition-colors duration-200 ease-in-out " +
+        "inline-flex items-center justify-center whitespace-nowrap rounded-md px-4 py-2 text-sm font-medium " +
+        "transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 " +
+        "disabled:pointer-events-none disabled:opacity-50 " +
+        "data-[state=active]:bg-white data-[state=active]:text-black data-[state=active]:shadow-sm " +
+        "hover:bg-white hover:text-black " +
         className
       }
       {...props}
