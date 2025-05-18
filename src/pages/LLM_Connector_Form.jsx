@@ -4,7 +4,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { CheckCircle, Plus, X, Code2, ArrowDown } from "lucide-react";
 
 export default function AiApiCallForm() {
   const [stepName, setStepName] = useState("");
@@ -33,7 +32,9 @@ export default function AiApiCallForm() {
               <div className="space-y-1">
                 <label className="text-sm font-medium text-muted-foreground">Prompt</label>
                 <Textarea rows={4} value={prompt} onChange={(e) => setPrompt(e.target.value)} />
-                <p className="text-xs text-muted-foreground italic">Use double braces {{}} to access variables</p>
+                <p className="text-xs text-muted-foreground italic">
+                  Use double braces <code>{'{{variable}}'}</code> to access variables
+                </p>
               </div>
 
               <Button className="w-full">Save</Button>
