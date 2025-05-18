@@ -110,10 +110,10 @@ const generateSchemaFromExample = () => {
   return (
     <Card className="max-w-3xl mx-auto mt-8 shadow-2xl rounded-2xl p-4">
       <CardContent>
-        <h1 className="text-2xl font-bold mb-2">LLM Connector</h1>
+        <h1 className="text-lg font-medium mb-2">LLM Connector</h1>
         <Input placeholder="Step Name" className="mb-4" />
         <Tabs defaultValue="provider">
-          <TabsList className="grid w-full grid-cols-4 mb-6">
+          <TabsList className="grid w-full grid-cols-4 mb-4">
             <TabsTrigger value="provider">Provider & Model</TabsTrigger>
             <TabsTrigger value="output">Output Definition</TabsTrigger>
             <TabsTrigger value="eval">Evaluations</TabsTrigger>
@@ -124,7 +124,7 @@ const generateSchemaFromExample = () => {
             <div className="space-y-4">
               <div className="flex gap-4">
                 <div className="w-1/2">
-                  <label className="block font-medium">Provider</label>
+                  <label className="block text-sm font-medium text-muted-foreground">Provider</label>
                   <select className="w-full border rounded p-2" value={provider} onChange={(e) => setProvider(e.target.value)}>
                     {Object.keys(providerModels).map((prov) => (
                       <option key={prov} value={prov}>{prov}</option>
@@ -132,7 +132,7 @@ const generateSchemaFromExample = () => {
                   </select>
                 </div>
                 <div className="w-1/2">
-                  <label className="block font-medium">Account</label>
+                  <label className="block text-sm font-medium text-muted-foreground">Account</label>
                   <select className="w-full border rounded p-2">
                     <option value="acc1">Account 1</option>
                     <option value="acc2">Account 2</option>
@@ -141,7 +141,7 @@ const generateSchemaFromExample = () => {
               </div>
               <div className="flex gap-4">
                 <div className="w-1/2">
-                  <label className="block font-medium">Model</label>
+                  <label className="block text-sm font-medium text-muted-foreground">Model</label>
                   <select className="w-full border rounded p-2" value={selectedModel} onChange={(e) => setSelectedModel(e.target.value)}>
                     {models.map((model) => (
                       <option key={model} value={model}>{model}</option>
@@ -149,7 +149,7 @@ const generateSchemaFromExample = () => {
                   </select>
                 </div>
                 <div className="w-1/2">
-                  <label className="block font-medium">Temperature</label>
+                  <label className="block text-sm font-medium text-muted-foreground">Temperature</label>
                     <Input type="number" min="0" max="1" step="0.1" value={parseFloat(temperature || 0).toFixed(1)} onChange={(e) => setTemperature(parseFloat(e.target.value))} />
                 </div>
               </div>
@@ -190,7 +190,7 @@ const generateSchemaFromExample = () => {
             <div className="space-y-4">
               <div>
                 <div className="flex justify-between items-center">
-                  <label className="block font-medium">Output Example</label>
+                  <label className="block text-sm font-medium text-muted-foreground">Output Example</label>
                   <div className="flex gap-2">
                     <button type="button" onClick={() => formatJson(setOutputExample, outputExample)} title="Format JSON (Output Example)">
                       <Code2 size={16} className="text-blue-500" /></button>
@@ -206,7 +206,7 @@ const generateSchemaFromExample = () => {
               </div>
               <div>
                 <div className="flex justify-between items-center">
-                  <label className="block font-medium">JSON Schema</label>
+                  <label className="block text-sm font-medium text-muted-foreground">JSON Schema</label>
                   <div className="flex gap-2">
                     <button type="button" onClick={() => formatJson(setJsonSchema, jsonSchema)} title="Format JSON (Schema)"><Code2 size={16} className="text-blue-500" /></button>
                     <button type="button" onClick={() => validateJson(jsonSchema, setSchemaValidation)} title="Validate JSON (Schema)"><CheckCircle size={16} className="text-green-500" /></button>
@@ -219,7 +219,7 @@ const generateSchemaFromExample = () => {
           </TabsContent>
 
           <TabsContent value="eval">
-            <div className="space-y-6">
+            <div className="space-y-4">
               {evaluations.map((evaluation, idx) => (
                 <Card key={idx} className="p-4 relative shadow rounded-xl">
                   <button className="absolute top-2 right-2 text-gray-400 hover:text-red-500" onClick={() => handleRemoveEval(idx)}>
@@ -227,7 +227,7 @@ const generateSchemaFromExample = () => {
                   </button>
                   <div className="flex gap-4">
                     <div className="w-1/2">
-                      <label className="block font-medium">Evaluation Tool</label>
+                      <label className="block text-sm font-medium text-muted-foreground">Evaluation Tool</label>
                       <select className="w-full border rounded p-2" value={evaluation.tool} onChange={(e) => handleEvalChange(idx, "tool", e.target.value)}>
                         <option value="">Select tool...</option>
                         <option value="arize">Arize</option>
@@ -237,7 +237,7 @@ const generateSchemaFromExample = () => {
                       </select>
                     </div>
                     <div className="w-1/2">
-                      <label className="block font-medium">Account</label>
+                      <label className="block text-sm font-medium text-muted-foreground">Account</label>
                       <select className="w-full border rounded p-2">
                         <option value="acc1">Account 1</option>
                         <option value="acc2">Account 2</option>
@@ -245,7 +245,7 @@ const generateSchemaFromExample = () => {
                     </div>
                   </div>
                   <div className="mb-4 mt-4">
-                    <label className="block font-medium">Evaluation Type</label>
+                    <label className="block text-sm font-medium text-muted-foreground">Evaluation Type</label>
                     <select className="w-full border rounded p-2" value={evaluation.type} onChange={(e) => handleEvalChange(idx, 'type', e.target.value)}>
                       <option value="">Select type...</option>
                       {evaluation.tool === 'arize' && (
@@ -287,17 +287,17 @@ const generateSchemaFromExample = () => {
                   </div>
                   {evaluation.type === "custom" && (
                     <div className="mb-2">
-                      <label className="block font-medium">Custom Evaluation Definition</label>
+                      <label className="block text-sm font-medium text-muted-foreground">Custom Evaluation Definition</label>
                       <Textarea rows={3} value={evaluation.customDef} onChange={(e) => handleEvalChange(idx, "customDef", e.target.value)} placeholder="Custom logic or definition" />
                     </div>
                   )}
                   <div className="flex gap-4">
                     <div className="w-1/2">
-                      <label className="block font-medium">Minimum Expected Score</label>
+                      <label className="block text-sm font-medium text-muted-foreground">Minimum Expected Score</label>
                         <Input type="number" min="0" max="1" step="0.05" value={parseFloat(evaluation.target || 0.8).toFixed(2)} onChange={(e) => handleEvalChange(idx, 'target', e.target.value)} /> 
                     </div>
                     <div className="w-1/2">
-                      <label className="block font-medium">Number of Retries</label>
+                      <label className="block text-sm font-medium text-muted-foreground">Number of Retries</label>
                         <Input type="number" min="0" max="10" step="1" defaultValue={0} />
                     </div>
                   </div>  
@@ -311,7 +311,7 @@ const generateSchemaFromExample = () => {
           <TabsContent value="advanced">
             <div className="space-y-4">
               <div className="flex items-center gap-4">
-                <label className="block font-medium">Log Costs</label>
+                <label className="block text-sm font-medium text-muted-foreground">Log Costs</label>
                 <label className="inline-flex items-center cursor-pointer">
                   <span className="relative">
                     <input type="checkbox" className="sr-only peer" />
@@ -321,7 +321,7 @@ const generateSchemaFromExample = () => {
                 </label>
               </div>
                <div className="flex items-center gap-4">
-                <label className="block font-medium">Log Evaluations</label>
+                <label className="block text-sm font-medium text-muted-foreground">Log Evaluations</label>
                 <label className="inline-flex items-center cursor-pointer">
                   <span className="relative">
                     <input type="checkbox" className="sr-only peer" />
