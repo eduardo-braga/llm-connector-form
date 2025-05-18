@@ -160,8 +160,8 @@ const generateSchemaFromExample = () => {
                   <TabsTrigger value="files">Files</TabsTrigger>
                 </TabsList>
                 <TabsContent value="user">
-                   <p className="text-xs text-muted-foreground italic">
-                          Use double braces <code>{'{{}}'}</code> to access variables
+                  <p className="text-xs text-muted-foreground italic">
+                        Use double braces <code className="font-mono text-muted-foreground">{{'{{}}'}}</code> to access variables
                   </p>
                   <Textarea rows={8} placeholder="What do you want to ask?" />
                 </TabsContent>
