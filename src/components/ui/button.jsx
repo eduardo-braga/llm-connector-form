@@ -4,7 +4,8 @@ export function Button({ children, variant = "default", size = "md", className =
   const variants = {
     default: "bg-blue-600 text-white hover:bg-blue-700",
     outline: "border border-gray-300 text-gray-800 bg-white hover:bg-gray-100",
-    ghost: "bg-transparent text-gray-600 hover:text-gray-900"
+    ghost: "bg-transparent text-gray-600 hover:text-gray-900",
+    black: "bg-black text-white hover:bg-neutral-800"
   };
 
   const sizes = {

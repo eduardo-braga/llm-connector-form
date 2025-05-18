@@ -4,14 +4,50 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { X, Plus, CheckCircle, Code2, ArrowDown } from "lucide-react";
+
+const providerLabels = {
+  OpenAI: "OpenAI ChatGPT",
+  Anthropic: "Anthropic Claude",
+  Google: "Google Gemini",
+  DeepSeek: "DeepSeek",
+  Custom: "Custom"
+};
+
+const providerIcons = {
+  OpenAI: "/logos/openai.svg",
+  Anthropic: "/logos/claude.svg",
+  Google: "/logos/gemini.svg",
+  DeepSeek: "/logos/deepseek.svg",
+  Custom: "/logos/custom.svg"
+};
 
 const providerModels = {
   OpenAI: ["gpt-4o", "gpt-4-turbo"],
   Anthropic: ["claude-3-opus", "claude-3-sonnet"],
   Google: ["gemini-pro"],
   DeepSeek: ["deepseek-coder"],
-  Private: ["Custom"]
+  Custom: ["custom"]
+};
+
+const evaluatorOptions = {
+  "arize": {
+    label: "Arize",
+    icon: "/logos/arize.png"
+  },
+  "opik": {
+    label: "Opik",
+    icon: "/logos/opik.svg"
+  },
+  "langfuse": {
+    label: "Langfuse",
+    icon: "/logos/langfuse.png"
+  },
+  "openai-evals": {
+    label: "OpenAI Evals",
+    icon: "/logos/openai.svg"
+  }
 };
 
 export default function AiApiCallForm() {
@@ -125,11 +161,21 @@ const generateSchemaFromExample = () => {
               <div className="flex gap-4">
                 <div className="w-1/2">
                   <label className="block text-sm font-medium text-muted-foreground">Provider</label>
-                  <select className="w-full border rounded p-2" value={provider} onChange={(e) => setProvider(e.target.value)}>
-                    {Object.keys(providerModels).map((prov) => (
-                      <option key={prov} value={prov}>{prov}</option>
-                    ))}
-                  </select>
+                  <Select value={provider} onValueChange={setProvider}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select a provider" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.keys(providerModels).map((prov) => (
+                        <SelectItem key={prov} value={prov}>
+                          <div className="flex items-center gap-2">
+                            <img src={providerIcons[prov]} alt={prov} className="h-4 w-4" />
+                            {providerLabels[prov]}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="w-1/2">
                   <label className="block text-sm font-medium text-muted-foreground">Account</label>
@@ -230,13 +276,21 @@ const generateSchemaFromExample = () => {
                   <div className="flex gap-4">
                     <div className="w-1/2">
                       <label className="block text-sm font-medium text-muted-foreground">Evaluation Tool</label>
-                      <select className="w-full border rounded p-2" value={evaluation.tool} onChange={(e) => handleEvalChange(idx, "tool", e.target.value)}>
-                        <option value="">Select tool...</option>
-                        <option value="arize">Arize</option>
-                        <option value="opik">Opik</option>
-                        <option value="langfuse">Langfuse</option>
-                        <option value="openai-evals">OpenAI Evals</option>
-                      </select>
+                      <Select value={evaluation.tool} onValueChange={(val) => handleEvalChange(idx, "tool", val)}>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select evaluation tool..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Object.entries(evaluatorOptions).map(([value, { label, icon }]) => (
+                            <SelectItem key={value} value={value}>
+                              <div className="flex items-center gap-2">
+                                <img src={icon} alt={label} className="w-4 h-4" />
+                                {label}
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div className="w-1/2">
                       <label className="block text-sm font-medium text-muted-foreground">Account</label>
@@ -335,7 +389,7 @@ const generateSchemaFromExample = () => {
             </div>
           </TabsContent>
         </Tabs>
-        <Button className="w-full mt-6" variant="ghost" size="lg" onClick={() => window.alert('Connector successfully saved!')}>Save</Button>
+        <Button className="w-full mt-6" variant="black" size="lg" onClick={() => window.alert('Connector successfully saved!')}>Save</Button>
       </CardContent>
     </Card>
   );
