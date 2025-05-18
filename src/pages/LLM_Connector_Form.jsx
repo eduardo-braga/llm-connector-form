@@ -335,7 +335,7 @@ const generateSchemaFromExample = () => {
             </div>
           </TabsContent>
         </Tabs>
-        <Button className="w-full mt-6" variant="default" size="lg" onClick={() => window.alert('Connector successfully saved!')}>Save</Button>
+        <Button className="w-full bg-black hover:bg-neutral-800 text-white mt-6" variant="default" size="lg" onClick={() => window.alert('Connector successfully saved!')}>Save</Button>
       </CardContent>
     </Card>
   );
