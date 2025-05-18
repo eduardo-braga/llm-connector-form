@@ -1,7 +1,7 @@
-import React from "react";
+import * as React from "react";
 
 export function Card({ children, className = "", ...props }) {
-  return <div className={`bg-white border rounded shadow-sm ${className}`} {...props}>{children}</div>;
+  return <div className={`rounded-2xl border bg-white text-card-foreground shadow ${className}`} {...props}>{children}</div>;
 }
 
 export function CardContent({ children, className = "", ...props }) {

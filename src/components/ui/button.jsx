@@ -1,6 +1,6 @@
-import React from "react";
+import * as React from "react";
 
-export function Button({ children, variant = "default", size = "md", ...props }) {
+export function Button({ children, variant = "default", size = "md", className = "", ...props }) {
   const variants = {
     default: "bg-blue-600 text-white hover:bg-blue-700",
     outline: "border border-gray-300 text-gray-800 bg-white hover:bg-gray-100",
@@ -15,7 +15,7 @@ export function Button({ children, variant = "default", size = "md", ...props })
   };
 
   return (
-    <button className={`${variants[variant]} ${sizes[size]} rounded`} {...props}>
+    <button className={`rounded ${variants[variant]} ${sizes[size]} ${className}`} {...props}>
       {children}
     </button>
   );
