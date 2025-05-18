@@ -113,7 +113,7 @@ const generateSchemaFromExample = () => {
         <h1 className="text-lg font-medium mb-2">LLM Connector</h1>
         <Input placeholder="Step Name" className="mb-4" />
         <Tabs defaultValue="provider">
-          <TabsList className="grid w-full grid-cols-4 mb-4">
+          <TabsList className="grid w-full grid-cols-4 mb-2">
             <TabsTrigger value="provider">Provider & Model</TabsTrigger>
             <TabsTrigger value="output">Output Definition</TabsTrigger>
             <TabsTrigger value="eval">Evaluations</TabsTrigger>
@@ -154,7 +154,7 @@ const generateSchemaFromExample = () => {
                 </div>
               </div>
               <Tabs defaultValue="user">
-                <TabsList className="w-full my-4 grid grid-cols-3">
+                <TabsList className="w-full mb-2 grid grid-cols-3">
                   <TabsTrigger value="user">User Prompt</TabsTrigger>
                   <TabsTrigger value="system">System Prompt</TabsTrigger>
                   <TabsTrigger value="files">Files</TabsTrigger>
