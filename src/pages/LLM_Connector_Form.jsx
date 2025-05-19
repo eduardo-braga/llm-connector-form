@@ -78,7 +78,7 @@ export default function AiApiCallForm() {
   const [provider, setProvider] = useState("OpenAI");
   const [models, setModels] = useState(providerModels["OpenAI"]);
   const [selectedModel, setSelectedModel] = useState(models[0]);
-  const [evaluations, setEvaluations] = useState([{ tool: "", type: "builtin", target: "", retries: 1, customDef: "" }]);
+  const [evaluations, setEvaluations] = useState([{ tool: "", type: "", target: "", retries: 1, customDef: "" }]);
   const [outputExample, setOutputExample] = useState("{\n  \"name\": \"John Doe\",\n  \"age\": 40,\n  \"active\": true,\n  \"hobbies\": [\"reading\",  \"gaming\",  \"music\" ]\n}");
   const [jsonSchema, setJsonSchema] = useState(`{\n  \"type\": \"object\",\n  \"properties\": {\n    \"answer\": { \"type\": \"string\" }\n  }\n}`);
   const [outputValidation, setOutputValidation] = useState("");
@@ -86,6 +86,8 @@ export default function AiApiCallForm() {
   const [fileInputs, setFileInputs] = useState([""]);
   const [maxTokens, setMaxTokens] = useState("2048");
   const [providerUrl, setProviderUrl] = useState("");
+  const [account, setAccount] = useState("");
+  const [account2, setAccount2] = useState("");
 
   const addFileInput = () => setFileInputs([...fileInputs, ""]);
 
@@ -206,10 +208,15 @@ const generateSchemaFromExample = () => {
                 </div>
                 <div className="w-1/2">
                   <label className="block text-sm font-medium text-muted-foreground">Account</label>
-                  <select className="w-full border rounded p-2">
-                    <option value="acc1">Account 1</option>
-                    <option value="acc2">Account 2</option>
-                  </select>
+                  <Select value={account} onValueChange={setAccount}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select a provider account" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="acc1">Account OpenAI</SelectItem>
+                      <SelectItem value="acc2">Account Claude</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
               <div className="mb-4 mt-4">
@@ -236,68 +243,21 @@ const generateSchemaFromExample = () => {
                         onChange={(e) => setSelectedModel(e.target.value)}
                       />
                     ) : (
-                      <select
-                        className="w-full border rounded p-2"
-                        value={selectedModel}
-                        onChange={(e) => setSelectedModel(e.target.value)}
-                      >
-                        {models.map((model) => (
-                          <option key={model} value={model}>{model}</option>
-                        ))}
-                      </select>
+                      <Select value={selectedModel} onValueChange={setSelectedModel}>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select a model" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {models.map((model) => (
+                            <SelectItem key={model} value={model}>
+                              {model}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     )}
                 </div>
-                <div className="w-1/2">
-                  <div className="flex items-center gap-1 text-sm font-medium text-muted-foreground mb-1">
-                    Temperature
-                    <TooltipProvider delayDuration={100}>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <HelpCircle size={14} className="cursor-pointer text-muted-foreground" />
-                        </TooltipTrigger>
-                        <TooltipContent side="right">
-                          Controls randomness: lower = more deterministic, higher = more creative.
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </div>
-                  <Input
-                    type="number"
-                    min="0"
-                    max="1"
-                    step="0.1"
-                    value={parseFloat(temperature || 0).toFixed(1)}
-                    onChange={(e) => setTemperature(parseFloat(e.target.value))}
-                  />
-                </div>
-
-                {modelsWithMaxTokens[provider] && (
-                  <div className="w-1/2">
-                    <div className="flex items-center gap-1 text-sm font-medium text-muted-foreground mb-1">
-                      Max Tokens
-                      <TooltipProvider delayDuration={100}>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <HelpCircle size={14} className="cursor-pointer text-muted-foreground" />
-                          </TooltipTrigger>
-                          <TooltipContent side="right">
-                            Maximum number of tokens the model can generate in the response.
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </div>
-                    <Input
-                      type="number"
-                      min="1"
-                      placeholder="Ex: 2048"
-                      value={maxTokens}
-                      onChange={(e) => setMaxTokens(e.target.value)}
-                    />
-                  </div>
-                )}
-
               </div>
-
               <Tabs defaultValue="user">
                 <TabsList className="w-full mb-2 grid grid-cols-3">
                   <TabsTrigger value="user">User Prompt</TabsTrigger>
@@ -339,15 +299,47 @@ const generateSchemaFromExample = () => {
                 <div className="flex justify-between items-center">
                   <label className="block text-sm font-medium text-muted-foreground">Output Example</label>
                   <div className="flex gap-2">
-                    <button type="button" onClick={() => formatJson(setOutputExample, outputExample)} title="Format JSON (Output Example)">
-                      <Code2 size={16} className="text-blue-500" />
-                    </button>
-                    <button type="button" onClick={() => validateJson(outputExample, setOutputValidation)} title="Validate JSON (Output Example)">
-                      <CheckCircle size={16} className="text-green-500" />
-                    </button>
-                    <button type="button" onClick={generateSchemaFromExample} title="Generate Schema from Example">
-                      <ArrowDown size={16} className="text-purple-500" />
-                    </button>
+                    <TooltipProvider delayDuration={100}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            type="button"
+                            onClick={() => formatJson(setOutputExample, outputExample)}
+                          >
+                            <Code2 size={16} className="text-blue-500" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top">
+                          Format JSON (Output Example)
+                        </TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            type="button"
+                            onClick={() => validateJson(outputExample, setOutputValidation)}
+                          >
+                            <CheckCircle size={16} className="text-green-500" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top">
+                          Validate JSON (Output Example)
+                        </TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            type="button"
+                            onClick={generateSchemaFromExample}
+                          >
+                            <ArrowDown size={16} className="text-purple-500" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top">
+                          Generate Schema from Example
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   </div>
                 </div>
                 <CodeMirror
@@ -365,12 +357,34 @@ const generateSchemaFromExample = () => {
                 <div className="flex justify-between items-center">
                   <label className="block text-sm font-medium text-muted-foreground">JSON Schema</label>
                   <div className="flex gap-2">
-                    <button type="button" onClick={() => formatJson(setJsonSchema, jsonSchema)} title="Format JSON (Schema)">
-                      <Code2 size={16} className="text-blue-500" />
-                    </button>
-                    <button type="button" onClick={() => validateJson(jsonSchema, setSchemaValidation)} title="Validate JSON (Schema)">
-                      <CheckCircle size={16} className="text-green-500" />
-                    </button>
+                    <TooltipProvider delayDuration={100}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            type="button"
+                            onClick={() => formatJson(setJsonSchema, jsonSchema)}
+                          >
+                            <Code2 size={16} className="text-blue-500" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top">
+                          Format JSON (Schema)
+                        </TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            type="button"
+                            onClick={() => validateJson(jsonSchema, setSchemaValidation)}
+                          >
+                            <CheckCircle size={16} className="text-green-500" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top">
+                          Validate JSON (Schema)
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   </div>
                 </div>
                 <CodeMirror
@@ -385,7 +399,6 @@ const generateSchemaFromExample = () => {
               </div>
             </div>
           </TabsContent>
-
 
           <TabsContent value="eval">
             <div className="space-y-4">
@@ -415,52 +428,63 @@ const generateSchemaFromExample = () => {
                     </div>
                     <div className="w-1/2">
                       <label className="block text-sm font-medium text-muted-foreground">Account</label>
-                      <select className="w-full border rounded p-2">
-                        <option value="acc1">Account 1</option>
-                        <option value="acc2">Account 2</option>
-                      </select>
+                      <Select value={account2} onValueChange={setAccount2}>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select evaluation tool account" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="acc1">Account Arize</SelectItem>
+                          <SelectItem value="acc2">Account OpenAI</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
                   <div className="mb-4 mt-4">
                     <label className="block text-sm font-medium text-muted-foreground">Evaluation Type</label>
-                    <select className="w-full border rounded p-2" value={evaluation.type} onChange={(e) => handleEvalChange(idx, 'type', e.target.value)}>
-                      <option value="">Select type...</option>
-                      {evaluation.tool === 'arize' && (
-                        <>
-                          <option value="tool_calling">Built-in: Tool Calling</option>
-                          <option value="function_calling">Built-in: Function Calling</option>
-                          <option value="format_check">Built-in: Format Check</option>
-                          <option value="answer_relevance">Built-in: Answer Relevance</option>
-                          <option value="toxicity_check">Built-in: Toxicity Check</option>
-                          <option value="hallucination_check">Built-in: Hallucination Check</option>
-                          <option value="instruction_following">Built-in: Instruction Following</option>
-                          <option value="reasoning_quality">Built-in: Reasoning Quality</option>
-                        </>
-                      )}
-                      {evaluation.tool === 'opik' && (
-                        <>
-                          <option value="equals">Heuristic: Equals</option>
-                          <option value="contains">Heuristic: Contains</option>
-                          <option value="hallucination">LLM-Judge: Hallucination</option>
-                          <option value="context_relevance">LLM-Judge: Context Relevance</option>
-                        </>
-                      )}
-                      {evaluation.tool === 'langfuse' && (
-                        <>
-                          <option value="coherence">LLM: Coherence</option>
-                          <option value="conciseness">LLM: Conciseness</option>
-                        </>
-                      )}
-                      {evaluation.tool === 'openai-evals' && (
-                        <>
-                          <option value="accuracy">Built-in: Accuracy</option>
-                          <option value="relevance">Built-in: Relevance</option>
-                          <option value="completeness">Built-in: Completeness</option>
-                          <option value="similarity">Built-in: Similarity</option>
-                        </>
-                      )}
-                      <option value="custom">Custom</option>
-                    </select>
+                    <Select value={evaluation.type}
+                      onValueChange={(val) => handleEvalChange(idx, "type", val)}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select type..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {evaluation.tool === "arize" && (
+                          <>
+                            <SelectItem value="tool_calling">Built-in: Tool Calling</SelectItem>
+                            <SelectItem value="function_calling">Built-in: Function Calling</SelectItem>
+                            <SelectItem value="format_check">Built-in: Format Check</SelectItem>
+                            <SelectItem value="answer_relevance">Built-in: Answer Relevance</SelectItem>
+                            <SelectItem value="toxicity_check">Built-in: Toxicity Check</SelectItem>
+                            <SelectItem value="hallucination_check">Built-in: Hallucination Check</SelectItem>
+                            <SelectItem value="instruction_following">Built-in: Instruction Following</SelectItem>
+                            <SelectItem value="reasoning_quality">Built-in: Reasoning Quality</SelectItem>
+                          </>
+                        )}
+                        {evaluation.tool === "opik" && (
+                          <>
+                            <SelectItem value="equals">Heuristic: Equals</SelectItem>
+                            <SelectItem value="contains">Heuristic: Contains</SelectItem>
+                            <SelectItem value="hallucination">LLM-Judge: Hallucination</SelectItem>
+                            <SelectItem value="context_relevance">LLM-Judge: Context Relevance</SelectItem>
+                          </>
+                        )}
+                        {evaluation.tool === "langfuse" && (
+                          <>
+                            <SelectItem value="coherence">LLM: Coherence</SelectItem>
+                            <SelectItem value="conciseness">LLM: Conciseness</SelectItem>
+                          </>
+                        )}
+                        {evaluation.tool === "openai-evals" && (
+                          <>
+                            <SelectItem value="accuracy">Built-in: Accuracy</SelectItem>
+                            <SelectItem value="relevance">Built-in: Relevance</SelectItem>
+                            <SelectItem value="completeness">Built-in: Completeness</SelectItem>
+                            <SelectItem value="similarity">Built-in: Similarity</SelectItem>
+                          </>
+                        )}
+                        <SelectItem value="custom">Custom</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                   {evaluation.type === "custom" && (
                     <div className="mb-2">
@@ -486,28 +510,80 @@ const generateSchemaFromExample = () => {
             </div>
           </TabsContent>
           <TabsContent value="advanced">
-            <div className="space-y-4">
-              <div className="flex items-center gap-4">
-                <label className="block text-sm font-medium text-muted-foreground">Log Costs</label>
-                <label className="inline-flex items-center cursor-pointer">
-                  <span className="relative">
-                    <input type="checkbox" className="sr-only peer" />
-                    <div className="w-11 h-6 bg-gray-300 rounded-full peer-checked:bg-black transition-all duration-300"></div>
-                    <div className="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-md transform peer-checked:translate-x-full transition-transform duration-300"></div>
-                  </span>
-                </label>
-              </div>
-               <div className="flex items-center gap-4">
-                <label className="block text-sm font-medium text-muted-foreground">Log Evaluations</label>
-                <label className="inline-flex items-center cursor-pointer">
-                  <span className="relative">
-                    <input type="checkbox" className="sr-only peer" />
-                    <div className="w-11 h-6 bg-gray-300 rounded-full peer-checked:bg-black transition-all duration-300"></div>
-                    <div className="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-md transform peer-checked:translate-x-full transition-transform duration-300"></div>
-                  </span>
-                </label>
-              </div>
+          <div className="space-y-4">
+            <div className="flex items-center gap-4">
+              <label className="block text-sm font-medium text-muted-foreground">Log Costs</label>
+              <label className="inline-flex items-center cursor-pointer">
+                <span className="relative">
+                  <input type="checkbox" className="sr-only peer" />
+                  <div className="w-11 h-6 bg-gray-300 rounded-full peer-checked:bg-black transition-all duration-300"></div>
+                  <div className="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-md transform peer-checked:translate-x-full transition-transform duration-300"></div>
+                </span>
+              </label>
             </div>
+
+            <div className="flex items-center gap-4">
+              <label className="block text-sm font-medium text-muted-foreground">Log Evaluations</label>
+              <label className="inline-flex items-center cursor-pointer">
+                <span className="relative">
+                  <input type="checkbox" className="sr-only peer" />
+                  <div className="w-11 h-6 bg-gray-300 rounded-full peer-checked:bg-black transition-all duration-300"></div>
+                  <div className="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-md transform peer-checked:translate-x-full transition-transform duration-300"></div>
+                </span>
+              </label>
+            </div>
+
+            <div>
+              <div className="flex items-center gap-1 text-sm font-medium text-muted-foreground mb-1">
+                Model Temperature
+                <TooltipProvider delayDuration={100}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <HelpCircle size={14} className="cursor-pointer text-muted-foreground" />
+                    </TooltipTrigger>
+                    <TooltipContent side="right">
+                      Controls randomness: lower = more deterministic, higher = more creative.
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+              <Input
+                type="number"
+                className="w-32"
+                min="0"
+                max="1"
+                step="0.1"
+                value={parseFloat(temperature || 0).toFixed(1)}
+                onChange={(e) => setTemperature(parseFloat(e.target.value))}
+              />
+            </div>
+
+            {modelsWithMaxTokens[provider] && (
+              <div>
+                <div className="flex items-center gap-1 text-sm font-medium text-muted-foreground mb-1">
+                  Max Tokens
+                  <TooltipProvider delayDuration={100}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <HelpCircle size={14} className="cursor-pointer text-muted-foreground" />
+                      </TooltipTrigger>
+                      <TooltipContent side="right">
+                        Maximum number of tokens the model can generate in the response.
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+                <Input
+                  type="number"
+                  min="1"
+                  className="w-32"
+                  placeholder="Ex: 2048"
+                  value={maxTokens}
+                  onChange={(e) => setMaxTokens(e.target.value)}
+                />
+              </div>
+            )}
+          </div>
           </TabsContent>
         </Tabs>
         <Button
