@@ -163,7 +163,7 @@ const generateSchemaFromExample = () => {
         <Input placeholder="Step Name" className="mb-4" />
         <Tabs defaultValue="provider">
           <TabsList className="grid w-full grid-cols-4 mb-2">
-            <TabsTrigger value="provider">Provider & Model</TabsTrigger>
+            <TabsTrigger value="provider">Model & Input</TabsTrigger>
             <TabsTrigger value="output">Output Definition</TabsTrigger>
             <TabsTrigger value="eval">Evaluations</TabsTrigger>
              <TabsTrigger value="advanced">Advanced</TabsTrigger>
