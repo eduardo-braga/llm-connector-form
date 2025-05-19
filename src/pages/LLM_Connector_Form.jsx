@@ -222,10 +222,10 @@ const generateSchemaFromExample = () => {
                   <p className="text-xs text-gray-500 italic">
                       Use double braces <code className="font-mono text-gray-400">{'{{}}'}</code> to access variables
                   </p>
-                  <Textarea rows={8} placeholder="What do you want to ask?" />
+                  <Textarea rows={8} placeholder="What do you want to do?" />
                 </TabsContent>
                 <TabsContent value="system">
-                  <Textarea rows={8} placeholder="You are a helpful assistant..." />
+                  <Textarea rows={8} placeholder="Define the AI's behavior, tone, personality, and boundaries here." />
                 </TabsContent>
                 <TabsContent value="files">
                   <p className="text-sm text-muted-foreground mb-2">Add the file IDs already uploaded to the model</p>
