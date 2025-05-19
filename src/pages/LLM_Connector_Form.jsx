@@ -549,7 +549,7 @@ const generateSchemaFromExample = () => {
               </div>
               <Input
                 type="number"
-                className="w-32"
+                className="!w-32"
                 min="0"
                 max="1"
                 step="0.1"
@@ -576,7 +576,7 @@ const generateSchemaFromExample = () => {
                 <Input
                   type="number"
                   min="1"
-                  className="w-32"
+                  className="!w-32"
                   placeholder="Ex: 2048"
                   value={maxTokens}
                   onChange={(e) => setMaxTokens(e.target.value)}
