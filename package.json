@@ -7,8 +7,11 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@codemirror/lang-json": "^6.0.1",
     "@radix-ui/react-select": "^2.2.4",
     "@radix-ui/react-tabs": "^1.1.11",
+    "@uiw/codemirror-theme-quietlight": "^4.23.12",
+    "@uiw/react-codemirror": "^4.23.12",
     "lucide-react": "^0.300.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"

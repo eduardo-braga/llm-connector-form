@@ -6,6 +6,19 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { X, Plus, CheckCircle, Code2, ArrowDown } from "lucide-react";
+import CodeMirror from "@uiw/react-codemirror";
+import { json } from "@codemirror/lang-json";
+import { quietlight } from "@uiw/codemirror-theme-quietlight";
+import { EditorView } from "@codemirror/view";
+
+const noHighlightLine = EditorView.theme({
+  ".cm-activeLine": {
+    backgroundColor: "transparent !important"
+  },
+  ".cm-activeLineGutter": {
+    backgroundColor: "transparent !important"
+  }
+});
 
 const providerLabels = {
   OpenAI: "OpenAI ChatGPT",
@@ -234,37 +247,59 @@ const generateSchemaFromExample = () => {
             </div>
           </TabsContent>
 
-          <TabsContent value="output">
+         <TabsContent value="output">
             <div className="space-y-4">
               <div>
                 <div className="flex justify-between items-center">
                   <label className="block text-sm font-medium text-muted-foreground">Output Example</label>
                   <div className="flex gap-2">
                     <button type="button" onClick={() => formatJson(setOutputExample, outputExample)} title="Format JSON (Output Example)">
-                      <Code2 size={16} className="text-blue-500" /></button>
+                      <Code2 size={16} className="text-blue-500" />
+                    </button>
                     <button type="button" onClick={() => validateJson(outputExample, setOutputValidation)} title="Validate JSON (Output Example)">
-                      <CheckCircle size={16} className="text-green-500" /></button>
+                      <CheckCircle size={16} className="text-green-500" />
+                    </button>
                     <button type="button" onClick={generateSchemaFromExample} title="Generate Schema from Example">
                       <ArrowDown size={16} className="text-purple-500" />
                     </button>
                   </div>
                 </div>
-                <Textarea rows={6} className="font-mono w-full" value={outputExample} onChange={(e) => setOutputExample(e.target.value)} />
+                <CodeMirror
+                  value={outputExample}
+                  height="160px"
+                  theme={ quietlight }
+                  extensions={[json(), noHighlightLine]}
+                  onChange={(val) => setOutputExample(val)}
+                  className="font-mono border rounded"
+                />
                 {outputValidation && <div className="text-sm mt-1 text-gray-600">{outputValidation}</div>}
               </div>
+
               <div>
                 <div className="flex justify-between items-center">
                   <label className="block text-sm font-medium text-muted-foreground">JSON Schema</label>
                   <div className="flex gap-2">
-                    <button type="button" onClick={() => formatJson(setJsonSchema, jsonSchema)} title="Format JSON (Schema)"><Code2 size={16} className="text-blue-500" /></button>
-                    <button type="button" onClick={() => validateJson(jsonSchema, setSchemaValidation)} title="Validate JSON (Schema)"><CheckCircle size={16} className="text-green-500" /></button>
+                    <button type="button" onClick={() => formatJson(setJsonSchema, jsonSchema)} title="Format JSON (Schema)">
+                      <Code2 size={16} className="text-blue-500" />
+                    </button>
+                    <button type="button" onClick={() => validateJson(jsonSchema, setSchemaValidation)} title="Validate JSON (Schema)">
+                      <CheckCircle size={16} className="text-green-500" />
+                    </button>
                   </div>
                 </div>
-                <Textarea rows={10} className="font-mono w-full" value={jsonSchema} onChange={(e) => setJsonSchema(e.target.value)} />
+                <CodeMirror
+                  value={jsonSchema}
+                  height="200px"
+                  theme={ quietlight }
+                  extensions={[json(), noHighlightLine]}
+                  onChange={(val) => setJsonSchema(val)}
+                  className="font-mono border rounded"
+                />
                 {schemaValidation && <div className="text-sm mt-1 text-gray-600">{schemaValidation}</div>}
               </div>
             </div>
           </TabsContent>
+
 
           <TabsContent value="eval">
             <div className="space-y-4">
@@ -371,7 +406,7 @@ const generateSchemaFromExample = () => {
                 <label className="inline-flex items-center cursor-pointer">
                   <span className="relative">
                     <input type="checkbox" className="sr-only peer" />
-                    <div className="w-11 h-6 bg-gray-300 rounded-full peer-checked:bg-blue-600 transition-all duration-300"></div>
+                    <div className="w-11 h-6 bg-gray-300 rounded-full peer-checked:bg-black transition-all duration-300"></div>
                     <div className="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-md transform peer-checked:translate-x-full transition-transform duration-300"></div>
                   </span>
                 </label>
@@ -381,7 +416,7 @@ const generateSchemaFromExample = () => {
                 <label className="inline-flex items-center cursor-pointer">
                   <span className="relative">
                     <input type="checkbox" className="sr-only peer" />
-                    <div className="w-11 h-6 bg-gray-300 rounded-full peer-checked:bg-blue-600 transition-all duration-300"></div>
+                    <div className="w-11 h-6 bg-gray-300 rounded-full peer-checked:bg-black transition-all duration-300"></div>
                     <div className="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-md transform peer-checked:translate-x-full transition-transform duration-300"></div>
                   </span>
                 </label>
