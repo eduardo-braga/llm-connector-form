@@ -1,15 +1,17 @@
 import React, { useState, useEffect } from "react";
+import { toast } from 'sonner';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
-import { X, Plus, CheckCircle, Code2, ArrowDown } from "lucide-react";
+import { X, Plus, CheckCircle, Code2, ArrowDown, HelpCircle } from "lucide-react";
 import CodeMirror from "@uiw/react-codemirror";
 import { json } from "@codemirror/lang-json";
 import { quietlight } from "@uiw/codemirror-theme-quietlight";
 import { EditorView } from "@codemirror/view";
+import { Tooltip, TooltipTrigger, TooltipContent,TooltipProvider} from "@/components/ui/tooltip";
 
 const noHighlightLine = EditorView.theme({
   ".cm-activeLine": {
@@ -77,7 +79,7 @@ export default function AiApiCallForm() {
   const [models, setModels] = useState(providerModels["OpenAI"]);
   const [selectedModel, setSelectedModel] = useState(models[0]);
   const [evaluations, setEvaluations] = useState([{ tool: "", type: "builtin", target: "", retries: 1, customDef: "" }]);
-  const [outputExample, setOutputExample] = useState("{\n  \"answer\": \"...\"\n}");
+  const [outputExample, setOutputExample] = useState("{\n  \"name\": \"John Doe\",\n  \"age\": 40,\n  \"active\": true,\n  \"hobbies\": [\"reading\",  \"gaming\",  \"music\" ]\n}");
   const [jsonSchema, setJsonSchema] = useState(`{\n  \"type\": \"object\",\n  \"properties\": {\n    \"answer\": { \"type\": \"string\" }\n  }\n}`);
   const [outputValidation, setOutputValidation] = useState("");
   const [schemaValidation, setSchemaValidation] = useState("");
@@ -113,8 +115,9 @@ export default function AiApiCallForm() {
     try {
       const parsed = JSON.parse(jsonStr);
       valueSetter(JSON.stringify(parsed, null, 2));
+      toast.success("JSON successfully formatted!");
     } catch (e) {
-      alert("Invalid JSON, cannot format.");
+      toast.error("Invalid JSON. Cannot format.");
     }
   };
 
@@ -161,8 +164,9 @@ const generateSchemaFromExample = () => {
     };
     const schema = buildSchema(example);
     setJsonSchema(JSON.stringify(schema, null, 2));
+    toast.success("Schema successfully generated!");
   } catch (e) {
-    alert("❌ Could not generate schema: " + e.message);
+    toast.error("Invalid JSON. Cannot generate schema.");
   }
 };
 
@@ -244,12 +248,44 @@ const generateSchemaFromExample = () => {
                     )}
                 </div>
                 <div className="w-1/2">
-                  <label className="block text-sm font-medium text-muted-foreground">Temperature</label>
-                    <Input type="number" min="0" max="1" step="0.1" value={parseFloat(temperature || 0).toFixed(1)} onChange={(e) => setTemperature(parseFloat(e.target.value))} />
+                  <div className="flex items-center gap-1 text-sm font-medium text-muted-foreground mb-1">
+                    Temperature
+                    <TooltipProvider delayDuration={100}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <HelpCircle size={14} className="cursor-pointer text-muted-foreground" />
+                        </TooltipTrigger>
+                        <TooltipContent side="right">
+                          Controls randomness: lower = more deterministic, higher = more creative.
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+                  <Input
+                    type="number"
+                    min="0"
+                    max="1"
+                    step="0.1"
+                    value={parseFloat(temperature || 0).toFixed(1)}
+                    onChange={(e) => setTemperature(parseFloat(e.target.value))}
+                  />
                 </div>
+
                 {modelsWithMaxTokens[provider] && (
                   <div className="w-1/2">
-                    <label className="block text-sm font-medium text-muted-foreground">Max Tokens</label>
+                    <div className="flex items-center gap-1 text-sm font-medium text-muted-foreground mb-1">
+                      Max Tokens
+                      <TooltipProvider delayDuration={100}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <HelpCircle size={14} className="cursor-pointer text-muted-foreground" />
+                          </TooltipTrigger>
+                          <TooltipContent side="right">
+                            Maximum number of tokens the model can generate in the response.
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
                     <Input
                       type="number"
                       min="1"
@@ -259,6 +295,7 @@ const generateSchemaFromExample = () => {
                     />
                   </div>
                 )}
+
               </div>
 
               <Tabs defaultValue="user">
@@ -473,7 +510,14 @@ const generateSchemaFromExample = () => {
             </div>
           </TabsContent>
         </Tabs>
-        <Button className="w-full mt-6" variant="black" size="lg" onClick={() => window.alert('Connector successfully saved!')}>Save</Button>
+        <Button
+          className="w-full mt-6"
+          variant="black"
+          size="lg"
+          onClick={() => toast.success("Connector successfully saved!")}
+        >
+          Save
+        </Button>
       </CardContent>
     </Card>
   );
