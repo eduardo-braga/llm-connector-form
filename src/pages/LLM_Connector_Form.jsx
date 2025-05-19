@@ -41,7 +41,15 @@ const providerModels = {
   Anthropic: ["claude-3-opus", "claude-3-sonnet"],
   Google: ["gemini-pro"],
   DeepSeek: ["deepseek-coder"],
-  Custom: ["custom"]
+  Custom: [""]
+};
+
+const modelsWithMaxTokens = {
+  OpenAI: true,
+  Anthropic: true,
+  Google: true,
+  DeepSeek: true,
+  Custom: true
 };
 
 const evaluatorOptions = {
@@ -74,6 +82,8 @@ export default function AiApiCallForm() {
   const [outputValidation, setOutputValidation] = useState("");
   const [schemaValidation, setSchemaValidation] = useState("");
   const [fileInputs, setFileInputs] = useState([""]);
+  const [maxTokens, setMaxTokens] = useState("2048");
+  const [providerUrl, setProviderUrl] = useState("");
 
   const addFileInput = () => setFileInputs([...fileInputs, ""]);
 
@@ -198,20 +208,59 @@ const generateSchemaFromExample = () => {
                   </select>
                 </div>
               </div>
+              <div className="mb-4 mt-4">
+              {provider === "Custom" && (
+                  <div>
+                    <label className="block text-sm font-medium text-muted-foreground">Custom Provider URL</label>
+                    <Input
+                      type="url"
+                      placeholder="https://your-custom-provider.com/api"
+                      value={providerUrl}
+                      onChange={(e) => setProviderUrl(e.target.value)}
+                    />
+                  </div>
+                )}
+              </div>
               <div className="flex gap-4">
                 <div className="w-1/2">
                   <label className="block text-sm font-medium text-muted-foreground">Model</label>
-                  <select className="w-full border rounded p-2" value={selectedModel} onChange={(e) => setSelectedModel(e.target.value)}>
-                    {models.map((model) => (
-                      <option key={model} value={model}>{model}</option>
-                    ))}
-                  </select>
+                  {provider === "Custom" ? (
+                      <Input
+                        type="text"
+                        placeholder="Enter custom model name"
+                        value={selectedModel}
+                        onChange={(e) => setSelectedModel(e.target.value)}
+                      />
+                    ) : (
+                      <select
+                        className="w-full border rounded p-2"
+                        value={selectedModel}
+                        onChange={(e) => setSelectedModel(e.target.value)}
+                      >
+                        {models.map((model) => (
+                          <option key={model} value={model}>{model}</option>
+                        ))}
+                      </select>
+                    )}
                 </div>
                 <div className="w-1/2">
                   <label className="block text-sm font-medium text-muted-foreground">Temperature</label>
                     <Input type="number" min="0" max="1" step="0.1" value={parseFloat(temperature || 0).toFixed(1)} onChange={(e) => setTemperature(parseFloat(e.target.value))} />
                 </div>
+                {modelsWithMaxTokens[provider] && (
+                  <div className="w-1/2">
+                    <label className="block text-sm font-medium text-muted-foreground">Max Tokens</label>
+                    <Input
+                      type="number"
+                      min="1"
+                      placeholder="Ex: 2048"
+                      value={maxTokens}
+                      onChange={(e) => setMaxTokens(e.target.value)}
+                    />
+                  </div>
+                )}
               </div>
+
               <Tabs defaultValue="user">
                 <TabsList className="w-full mb-2 grid grid-cols-3">
                   <TabsTrigger value="user">User Prompt</TabsTrigger>
