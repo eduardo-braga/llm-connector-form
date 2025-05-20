@@ -105,7 +105,7 @@ export default function AiApiCallForm() {
       setAccount2("");
     }
   }, [sendToEvaluationTool]);
-  
+
   useEffect(() => {
     setModels(providerModels[provider]);
     setSelectedModel(providerModels[provider][0]);
@@ -473,7 +473,18 @@ const generateSchemaFromExample = () => {
                       <label className="block text-sm font-medium text-muted-foreground">Number of Retries</label>
                         <Input type="number" min="0" max="10" step="1" defaultValue={0} />
                     </div>
-                  </div>  
+                  </div>
+
+                  <div className="flex items-center gap-4 mt-4">
+                      <label className="block text-sm font-medium text-muted-foreground">Stop execution if this evaluation fails?</label>
+                      <label className="inline-flex items-center cursor-pointer">
+                        <span className="relative">
+                          <input type="checkbox" className="sr-only peer" />
+                          <div className="w-11 h-6 bg-gray-300 rounded-full peer-checked:bg-black transition-all duration-300"></div>
+                          <div className="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-md transform peer-checked:translate-x-full transition-transform duration-300"></div>
+                        </span>
+                      </label>
+                    </div>  
                 </Card>
               ))}
               <Button variant="outline" onClick={handleAddEval} className="flex gap-2 items-center">
@@ -481,7 +492,6 @@ const generateSchemaFromExample = () => {
               </Button>
             </div>
             <hr className="border-t border-muted my-4" />
-            
             <div className="flex items-center gap-4">
               <label className="block text-sm font-medium text-muted-foreground">Send Evaluations to Evaluation Tool?</label>
               <label className="inline-flex items-center cursor-pointer">
