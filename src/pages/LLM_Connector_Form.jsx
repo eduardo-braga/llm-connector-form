@@ -9,18 +9,10 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@
 import { X, Plus, CheckCircle, Code2, ArrowDown, HelpCircle } from "lucide-react";
 import CodeMirror from "@uiw/react-codemirror";
 import { json } from "@codemirror/lang-json";
+import { python } from "@codemirror/lang-python";
 import { quietlight } from "@uiw/codemirror-theme-quietlight";
 import { EditorView } from "@codemirror/view";
 import { Tooltip, TooltipTrigger, TooltipContent,TooltipProvider} from "@/components/ui/tooltip";
-
-const noHighlightLine = EditorView.theme({
-  ".cm-activeLine": {
-    backgroundColor: "transparent !important"
-  },
-  ".cm-activeLineGutter": {
-    backgroundColor: "transparent !important"
-  }
-});
 
 const providerLabels = {
   OpenAI: "OpenAI ChatGPT",
@@ -39,10 +31,10 @@ const providerIcons = {
 };
 
 const providerModels = {
-  OpenAI: ["gpt-4o", "gpt-4-turbo"],
-  Anthropic: ["claude-3-opus", "claude-3-sonnet"],
-  Google: ["gemini-pro"],
-  DeepSeek: ["deepseek-coder"],
+  OpenAI: ["gpt-4o","gpt-4-turbo","gpt-4","gpt-3.5-turbo"],
+  Anthropic: ["claude-3-opus","claude-3-sonnet","claude-3-haiku"],
+  Google: ["gemini-1.5-pro-latest","gemini-1.5-flash-latest","gemini-pro","gemini-pro-vision"],
+  DeepSeek: ["deepseek-coder","deepseek-coder-instruct","deepseek-chat"],
   Custom: [""]
 };
 
@@ -62,7 +54,7 @@ const evaluatorOptions = {
   "opik": {
     label: "Opik",
     icon: "/logos/opik.svg"
-  },
+  }/*,
   "langfuse": {
     label: "Langfuse",
     icon: "/logos/langfuse.png"
@@ -70,15 +62,21 @@ const evaluatorOptions = {
   "openai-evals": {
     label: "OpenAI Evals",
     icon: "/logos/openai.svg"
-  }
+  }*/
 };
+
+const defaultPython = `def summary_completeness(output: str) -> float:
+    # Simple example: keyword presence percentage
+    keywords = ["keyword1", "keyword2", "keyword3"]
+    return sum(kw in output.lower() for kw in keywords) / len(keywords)
+`;
 
 export default function AiApiCallForm() {
   const [temperature, setTemperature] = useState(0);
   const [provider, setProvider] = useState("OpenAI");
   const [models, setModels] = useState(providerModels["OpenAI"]);
   const [selectedModel, setSelectedModel] = useState(models[0]);
-  const [evaluations, setEvaluations] = useState([{ tool: "", type: "", target: "", retries: 1, customDef: "" }]);
+  const [evaluations, setEvaluations] = useState([{ type: "instruction_following", score: "", retries: 1, customDef: defaultPython }]);
   const [outputExample, setOutputExample] = useState("{\n  \"name\": \"John Doe\",\n  \"age\": 40,\n  \"active\": true,\n  \"hobbies\": [\"reading\",  \"gaming\",  \"music\" ]\n}");
   const [jsonSchema, setJsonSchema] = useState(`{\n  \"type\": \"object\",\n  \"properties\": {\n    \"answer\": { \"type\": \"string\" }\n  }\n}`);
   const [outputValidation, setOutputValidation] = useState("");
@@ -88,6 +86,8 @@ export default function AiApiCallForm() {
   const [providerUrl, setProviderUrl] = useState("");
   const [account, setAccount] = useState("");
   const [account2, setAccount2] = useState("");
+  const [evaluatorTool, setEvaluatorTool] = useState("");
+  const [sendToEvaluationTool, setSendToEvaluationTool] = useState(false);
 
   const addFileInput = () => setFileInputs([...fileInputs, ""]);
 
@@ -99,6 +99,13 @@ export default function AiApiCallForm() {
     setFileInputs(updated);
   };
 
+  useEffect(() => {
+    if (!sendToEvaluationTool) {
+      setEvaluatorTool("");
+      setAccount2("");
+    }
+  }, [sendToEvaluationTool]);
+  
   useEffect(() => {
     setModels(providerModels[provider]);
     setSelectedModel(providerModels[provider][0]);
@@ -257,6 +264,7 @@ const generateSchemaFromExample = () => {
                       </Select>
                     )}
                 </div>
+                <div className="w-1/2"/>
               </div>
               <Tabs defaultValue="user">
                 <TabsList className="w-full mb-2 grid grid-cols-3">
@@ -346,7 +354,11 @@ const generateSchemaFromExample = () => {
                   value={outputExample}
                   height="160px"
                   theme={ quietlight }
-                  extensions={[json(), noHighlightLine]}
+                  basicSetup={{
+                          highlightActiveLine: false,
+                          highlightActiveLineGutter: false
+                  }}
+                  extensions={[json()]}
                   onChange={(val) => setOutputExample(val)}
                   className="font-mono border rounded"
                 />
@@ -391,7 +403,11 @@ const generateSchemaFromExample = () => {
                   value={jsonSchema}
                   height="200px"
                   theme={ quietlight }
-                  extensions={[json(), noHighlightLine]}
+                  basicSetup={{
+                          highlightActiveLine: false,
+                          highlightActiveLineGutter: false
+                  }}
+                  extensions={[json()]}
                   onChange={(val) => setJsonSchema(val)}
                   className="font-mono border rounded"
                 />
@@ -407,38 +423,7 @@ const generateSchemaFromExample = () => {
                   <button className="absolute top-2 right-2 text-gray-400 hover:text-red-500" onClick={() => handleRemoveEval(idx)}>
                     <X size={18} />
                   </button>
-                  <div className="flex gap-4">
-                    <div className="w-1/2">
-                      <label className="block text-sm font-medium text-muted-foreground">Evaluation Tool</label>
-                      <Select value={evaluation.tool} onValueChange={(val) => handleEvalChange(idx, "tool", val)}>
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select evaluation tool..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {Object.entries(evaluatorOptions).map(([value, { label, icon }]) => (
-                            <SelectItem key={value} value={value}>
-                              <div className="flex items-center gap-2">
-                                <img src={icon} alt={label} className="w-4 h-4" />
-                                {label}
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="w-1/2">
-                      <label className="block text-sm font-medium text-muted-foreground">Account</label>
-                      <Select value={account2} onValueChange={setAccount2}>
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select evaluation tool account" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="acc1">Account Arize</SelectItem>
-                          <SelectItem value="acc2">Account OpenAI</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
+                  
                   <div className="mb-4 mt-4">
                     <label className="block text-sm font-medium text-muted-foreground">Evaluation Type</label>
                     <Select value={evaluation.type}
@@ -447,55 +432,42 @@ const generateSchemaFromExample = () => {
                       <SelectTrigger className="w-full">
                         <SelectValue placeholder="Select type..." />
                       </SelectTrigger>
+
                       <SelectContent>
-                        {evaluation.tool === "arize" && (
-                          <>
-                            <SelectItem value="tool_calling">Built-in: Tool Calling</SelectItem>
-                            <SelectItem value="function_calling">Built-in: Function Calling</SelectItem>
-                            <SelectItem value="format_check">Built-in: Format Check</SelectItem>
-                            <SelectItem value="answer_relevance">Built-in: Answer Relevance</SelectItem>
-                            <SelectItem value="toxicity_check">Built-in: Toxicity Check</SelectItem>
-                            <SelectItem value="hallucination_check">Built-in: Hallucination Check</SelectItem>
-                            <SelectItem value="instruction_following">Built-in: Instruction Following</SelectItem>
-                            <SelectItem value="reasoning_quality">Built-in: Reasoning Quality</SelectItem>
-                          </>
-                        )}
-                        {evaluation.tool === "opik" && (
-                          <>
-                            <SelectItem value="equals">Heuristic: Equals</SelectItem>
-                            <SelectItem value="contains">Heuristic: Contains</SelectItem>
-                            <SelectItem value="hallucination">LLM-Judge: Hallucination</SelectItem>
-                            <SelectItem value="context_relevance">LLM-Judge: Context Relevance</SelectItem>
-                          </>
-                        )}
-                        {evaluation.tool === "langfuse" && (
-                          <>
-                            <SelectItem value="coherence">LLM: Coherence</SelectItem>
-                            <SelectItem value="conciseness">LLM: Conciseness</SelectItem>
-                          </>
-                        )}
-                        {evaluation.tool === "openai-evals" && (
-                          <>
-                            <SelectItem value="accuracy">Built-in: Accuracy</SelectItem>
-                            <SelectItem value="relevance">Built-in: Relevance</SelectItem>
-                            <SelectItem value="completeness">Built-in: Completeness</SelectItem>
-                            <SelectItem value="similarity">Built-in: Similarity</SelectItem>
-                          </>
-                        )}
+                        <SelectItem value="tool_calling">Tool Calling</SelectItem>
+                        <SelectItem value="function_calling">Function Calling</SelectItem>
+                        <SelectItem value="format_check">Format Check</SelectItem>
+                        <SelectItem value="answer_relevance">Answer Relevance</SelectItem>
+                        <SelectItem value="toxicity_check">Toxicity Check</SelectItem>
+                        <SelectItem value="hallucination_check">Hallucination Check</SelectItem>
+                        <SelectItem value="instruction_following">Instruction Following</SelectItem>
+                        <SelectItem value="reasoning_quality">Reasoning Quality</SelectItem>
                         <SelectItem value="custom">Custom</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                   {evaluation.type === "custom" && (
                     <div className="mb-2">
-                      <label className="block text-sm font-medium text-muted-foreground">Custom Evaluation Definition</label>
-                      <Textarea rows={3} value={evaluation.customDef} onChange={(e) => handleEvalChange(idx, "customDef", e.target.value)} placeholder="Custom logic or definition" />
+                      <label className="block text-sm font-medium text-muted-foreground">
+                        Custom Evaluation Definition
+                      </label>
+                      <CodeMirror
+                        value={evaluation.customDef}
+                        extensions={[python()]}
+                        onChange={(value) => handleEvalChange(idx, "customDef", value)}
+                        height="100px"
+                        theme={quietlight}
+                        basicSetup={{
+                          highlightActiveLine: false,
+                          highlightActiveLineGutter: false
+                        }}
+                      />
                     </div>
                   )}
                   <div className="flex gap-4">
                     <div className="w-1/2">
                       <label className="block text-sm font-medium text-muted-foreground">Minimum Expected Score</label>
-                        <Input type="number" min="0" max="1" step="0.05" value={parseFloat(evaluation.target || 0.8).toFixed(2)} onChange={(e) => handleEvalChange(idx, 'target', e.target.value)} /> 
+                        <Input type="number" min="0" max="1" step="0.05" value={parseFloat(evaluation.score || 0.8).toFixed(2)} onChange={(e) => handleEvalChange(idx, 'target', e.target.value)} /> 
                     </div>
                     <div className="w-1/2">
                       <label className="block text-sm font-medium text-muted-foreground">Number of Retries</label>
@@ -508,7 +480,60 @@ const generateSchemaFromExample = () => {
                 <Plus size={18} /> Add Evaluation
               </Button>
             </div>
+            <hr className="border-t border-muted my-4" />
+            
+            <div className="flex items-center gap-4">
+              <label className="block text-sm font-medium text-muted-foreground">Send Evaluations to Evaluation Tool?</label>
+              <label className="inline-flex items-center cursor-pointer">
+                <span className="relative">
+                  <input
+                      type="checkbox"
+                      className="sr-only peer"
+                      checked={sendToEvaluationTool}
+                      onChange={(e) => setSendToEvaluationTool(e.target.checked)}
+                    />
+                  <div className="w-11 h-6 bg-gray-300 rounded-full peer-checked:bg-black transition-all duration-300"></div>
+                  <div className="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-md transform peer-checked:translate-x-full transition-transform duration-300"></div>
+                </span>
+              </label>
+            </div>
+            {sendToEvaluationTool && (
+            <div className="flex gap-4 mt-4">
+              <div className="w-1/2">
+                <label className="block text-sm font-medium text-muted-foreground">Evaluation Tool</label>
+                <Select value={evaluatorTool} onValueChange={setEvaluatorTool}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select evaluation tool..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(evaluatorOptions).map(([value, { label, icon }]) => (
+                      <SelectItem key={value} value={value}>
+                        <div className="flex items-center gap-2">
+                          <img src={icon} alt={label} className="w-4 h-4" />
+                          {label}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="w-1/2">
+                <label className="block text-sm font-medium text-muted-foreground">Account</label>
+                <Select value={account2} onValueChange={setAccount2}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select evaluation tool account" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="acc1">Account Arize</SelectItem>
+                    <SelectItem value="acc2">Account OpenAI</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            )}
           </TabsContent>
+          
+
           <TabsContent value="advanced">
           <div className="space-y-4">
             <div className="flex items-center gap-4">
