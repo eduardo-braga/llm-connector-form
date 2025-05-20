@@ -111,7 +111,7 @@ export default function AiApiCallForm() {
     setSelectedModel(providerModels[provider][0]);
   }, [provider]);
 
-  const handleAddEval = () => setEvaluations([...evaluations, { tool: "", type: "builtin", target: "", retries: 1, customDef: "" }]);
+  const handleAddEval = () => setEvaluations([...evaluations, { type: "", score: "", retries: 1, customDef: "" }]);
 
   const handleEvalChange = (idx, field, value) => {
     const updated = evaluations.map((e, i) => (i === idx ? { ...e, [field]: value } : e));
