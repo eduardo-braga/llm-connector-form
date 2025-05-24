@@ -69,6 +69,7 @@ const promptExample = `You are an evaluator specialized in ......
 
 Check if my output response contains any ......
 
+-----DO NOT CHANGE BEYOND THIS LINE------
 Respond ONLY in this JSON format:
 
 {
@@ -254,33 +255,6 @@ const generateSchemaFromExample = () => {
   } catch (e) {
     toast.error("Invalid JSON. Cannot generate schema.");
   }
-};
-
-const getDescription = (value) => {
-  const descriptions = {
-    "format_check": "Verifies if the output matches the expected structural format.",
-    "regex": "Checks if the output matches a defined regex pattern.",
-    "function_calling": "Validates if function calls follow the expected schema.",
-    "keyword_presence": "Checks whether specific keywords are present in the response.",
-    "response_lenght": "Ensures the response length meets expected constraints.",
-    "toxicity_check": "Detects toxic, offensive, or harmful language in the output.",
-    "bias_detection": "Detects biased or unfair statements.",
-    "hate_speech": "Identifies hate speech, threats, or abusive content.",
-    "hallucination_check": "Checks whether the output contains made-up or hallucinated facts.",
-    "factual_consistency": "Ensures the output is factually consistent with the input context.",
-    "faithfulness": "Measures if the output faithfully represents the source or input.",
-    "answer_relevance": "Checks whether the answer is relevant to the question.",
-    "instruction_following": "Evaluates if the response correctly follows instructions.",
-    "completenes": "Verifies whether the response fully answers the question.",
-    "coherence": "Checks whether the output is logically organized and consistent.",
-    "conciseness_verbosity": "Evaluates if the output is concise or overly verbose.",
-    "reasoning_quality": "Measures logical reasoning quality in the response.",
-    "latency": "Measures the time taken to generate the response.",
-    "token_usage": "Evaluates the number of tokens consumed in the response.",
-    "custom": "Define your own evaluation logic with a custom script or function."
-  };
-
-  return descriptions[value] || "";
 };
 
   return (
