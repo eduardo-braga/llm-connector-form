@@ -65,25 +65,30 @@ const evaluatorOptions = {
   }*/
 };
 
-const defaultPython = `def summary_completeness(output: str) -> float:
-    # Simple example: keyword presence percentage
-    keywords = ["keyword1", "keyword2", "keyword3"]
-    return sum(kw in output.lower() for kw in keywords) / len(keywords)
-`;
+const promptExample = `You are an evaluator specialized in ......
+
+Check if my output response contains any ......
+
+Respond ONLY in this JSON format:
+
+{
+  "[score_field]": float (0.0 to 1.0),
+  "explanation": "A short explanation of the score."
+}`;
 
 const evaluationCategories = {
-  "Structural/Format": ["format_check", "regex", "function_calling", "keyword_presence", "response_lenght"],
+  "Structural/Format": ["format_check", "regex", "keyword_presence", "response_lenght"],
   "Content Safety": ["toxicity_check", "bias_detection", "hate_speech"],
   "Factual Integrity": ["hallucination_check", "factual_consistency", "faithfulness"],
   "Semantic Quality": ["answer_relevance", "instruction_following", "completenes", "coherence", "conciseness_verbosity", "reasoning_quality"],
-  "Performance Metrics": ["latency", "token_usage"],
   "Custom": ["custom"]
 };
+
+const typesWithoutScoreAndRetry = ["format_check", "regex", "keyword_presence", "response_lenght"];
 
 const evaluationTypeLabels = {
   "format_check": "Format Check (Offline)",
   "regex": "Regex Pattern Validation (Offline)",
-  "function_calling": "Function Validity (Offline)",
   "keyword_presence": "Keyword Presence (Offline)",
   "response_lenght": "Response Length Check (Offline)",
   "toxicity_check": "Toxicity Check (Online)",
@@ -98,16 +103,13 @@ const evaluationTypeLabels = {
   "coherence": "Coherence (Online)",
   "conciseness_verbosity": "Conciseness / Verbosity (Online)",
   "reasoning_quality": "Reasoning Quality (Online)",
-  "latency": "Latency (Offline)",
-  "token_usage": "Token Usage (Offline)",
-  "custom": "Custom (Online)"
+  "custom": "Custom Prompt (Online)"
 };
 
 const getDescription = (value) => {
   const descriptions = {
     "format_check": "Verifies if the output matches the expected structural format.",
     "regex": "Checks if the output matches a defined regex pattern.",
-    "function_calling": "Validates if function calls follow the expected schema.",
     "keyword_presence": "Checks whether specific keywords are present in the response.",
     "response_lenght": "Ensures the response length meets expected constraints.",
     "toxicity_check": "Detects toxic, offensive, or harmful language in the output.",
@@ -122,9 +124,7 @@ const getDescription = (value) => {
     "coherence": "Checks whether the output is logically organized and consistent.",
     "conciseness_verbosity": "Evaluates if the output is concise or overly verbose.",
     "reasoning_quality": "Measures logical reasoning quality in the response.",
-    "latency": "Measures the time taken to generate the response.",
-    "token_usage": "Evaluates the number of tokens consumed in the response.",
-    "custom": "Define your own evaluation logic with a custom script or function."
+    "custom": "Define your own evaluation logic with a custom prompt."
   };
 
   return descriptions[value] || "";
@@ -147,7 +147,7 @@ export default function AiApiCallForm() {
   const [account2, setAccount2] = useState("");
   const [evaluatorTool, setEvaluatorTool] = useState("");
   const [sendToEvaluationTool, setSendToEvaluationTool] = useState(false);
-  const [evaluations, setEvaluations] = useState([{ category: "", type: "", customDef: defaultPython }]);
+  const [evaluations, setEvaluations] = useState([{ category: "", type: "", customDef: promptExample, format: "XML" , regex: "", keywords: "", responseLengthType: "character",  maxResponseLength: ""}]);
 
   const addFileInput = () => setFileInputs([...fileInputs, ""]);
 
@@ -579,14 +579,15 @@ const getDescription = (value) => {
                     </Select>
                   </div>    
                   </div>
+                  
                   {evaluation.type === "custom" && (
                     <div className="mb-2">
                       <label className="block text-sm font-medium text-muted-foreground">
-                        Custom Evaluation Definition
+                        Evaluation Prompt
                       </label>
                       <CodeMirror
                         value={evaluation.customDef}
-                        extensions={[python()]}
+                        extensions={[json()]}
                         onChange={(value) => handleEvalChange(idx, "customDef", value)}
                         height="100px"
                         theme={quietlight}
@@ -597,7 +598,99 @@ const getDescription = (value) => {
                       />
                     </div>
                   )}
-                  <div className="flex gap-4">
+
+                  {evaluation.type === "format_check" && (
+                    <div className="mb-2">
+                      <label className="block text-sm font-medium text-muted-foreground mb-1">
+                        Select Format
+                      </label>
+                      <Select
+                        value={evaluation.format}
+                        onValueChange={(val) => handleEvalChange(idx, "format", val)}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select format" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="JSON">JSON</SelectItem>
+                          <SelectItem value="XML">XML</SelectItem>
+                          <SelectItem value="HTML">HTML</SelectItem>
+                          <SelectItem value="CSV">CSV</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
+                  {evaluation.type === "regex" && (
+                    <div className="mb-2">
+                      <label className="block text-sm font-medium text-muted-foreground mb-1">
+                        Regex Expression
+                      </label>
+                      <Input
+                        placeholder="e.g. ^[A-Za-z0-9]+$"
+                        value={evaluation.regex}
+                        onChange={(e) => handleEvalChange(idx, "regex", e.target.value)}
+                        className="w-full"
+                      />
+                    </div>
+                  )}
+
+                  {evaluation.type === "keyword_presence" && (
+                    <div className="mb-2">
+                      <label className="block text-sm font-medium text-muted-foreground mb-1">
+                        Keywords (comma separated)
+                      </label>
+                      <Input
+                        placeholder="e.g. apple, banana, orange"
+                        value={evaluation.keywords}
+                        onChange={(e) => handleEvalChange(idx, "keywords", e.target.value)}
+                        className="w-full"
+                      />
+                    </div>
+                  )}
+
+                  {evaluation.type === "response_lenght" && (
+                    <div className="mb-2">
+                      <div className="flex gap-4">
+                        <div className="w-1/2">
+                          <label className="block text-sm font-medium text-muted-foreground mb-1">
+                            Type
+                          </label>
+                          <Select
+                            value={evaluation.responseLengthType}
+                            onValueChange={(val) => handleEvalChange(idx, "responseLengthType", val)}
+                          >
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder="Select type" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="character">Character Count</SelectItem>
+                              <SelectItem value="word">Word Count</SelectItem>
+                              <SelectItem value="token">Token Count</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="w-1/2">
+                          <label className="block text-sm font-medium text-muted-foreground mb-1">
+                            Maximum Count
+                          </label>
+                          <Input
+                            type="number"
+                            min="1"
+                            placeholder="e.g. 500"
+                            value={evaluation.maxResponseLength}
+                            onChange={(e) => handleEvalChange(idx, "maxResponseLength", e.target.value)}
+                            className="w-full"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+
+                  {!typesWithoutScoreAndRetry.includes(evaluation.type) && (
+                  <div className="flex gap-4 mt-4">
                     <div className="w-1/2">
                       <label className="block text-sm font-medium text-muted-foreground">Minimum Expected Score</label>
                         <Input type="number" min="0" max="1" step="0.05" value={parseFloat(evaluation.score || 0.8).toFixed(2)} onChange={(e) => handleEvalChange(idx, 'target', e.target.value)} /> 
@@ -607,6 +700,7 @@ const getDescription = (value) => {
                         <Input type="number" min="0" max="10" step="1" defaultValue={0} />
                     </div>
                   </div>
+                   )}  
 
                   <div className="flex items-center gap-4 mt-4">
                       <label className="block text-sm font-medium text-muted-foreground">Stop execution if this evaluation fails?</label>
@@ -617,7 +711,8 @@ const getDescription = (value) => {
                           <div className="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-md transform peer-checked:translate-x-full transition-transform duration-300"></div>
                         </span>
                       </label>
-                    </div>  
+                    </div>
+
                 </Card>
               ))}
               <Button variant="outline" onClick={handleAddEval} className="flex gap-2 items-center">
