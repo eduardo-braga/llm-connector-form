@@ -71,12 +71,71 @@ const defaultPython = `def summary_completeness(output: str) -> float:
     return sum(kw in output.lower() for kw in keywords) / len(keywords)
 `;
 
+const evaluationCategories = {
+  "Structural/Format": ["format_check", "regex", "function_calling", "keyword_presence", "response_lenght"],
+  "Content Safety": ["toxicity_check", "bias_detection", "hate_speech"],
+  "Factual Integrity": ["hallucination_check", "factual_consistency", "faithfulness"],
+  "Semantic Quality": ["answer_relevance", "instruction_following", "completenes", "coherence", "conciseness_verbosity", "reasoning_quality"],
+  "Performance Metrics": ["latency", "token_usage"],
+  "Custom": ["custom"]
+};
+
+const evaluationTypeLabels = {
+  "format_check": "Format Check (Offline)",
+  "regex": "Regex Pattern Validation (Offline)",
+  "function_calling": "Function Validity (Offline)",
+  "keyword_presence": "Keyword Presence (Offline)",
+  "response_lenght": "Response Length Check (Offline)",
+  "toxicity_check": "Toxicity Check (Online)",
+  "bias_detection": "Bias Detection (Online)",
+  "hate_speech": "Hate Speech / Threats (Online)",
+  "hallucination_check": "Hallucination Check (Online)",
+  "factual_consistency": "Factual Consistency (Online)",
+  "faithfulness": "Faithfulness (Online)",
+  "answer_relevance": "Answer Relevance (Online)",
+  "instruction_following": "Instruction Following (Online)",
+  "completenes": "Completeness (Online)",
+  "coherence": "Coherence (Online)",
+  "conciseness_verbosity": "Conciseness / Verbosity (Online)",
+  "reasoning_quality": "Reasoning Quality (Online)",
+  "latency": "Latency (Offline)",
+  "token_usage": "Token Usage (Offline)",
+  "custom": "Custom (Online)"
+};
+
+const getDescription = (value) => {
+  const descriptions = {
+    "format_check": "Verifies if the output matches the expected structural format.",
+    "regex": "Checks if the output matches a defined regex pattern.",
+    "function_calling": "Validates if function calls follow the expected schema.",
+    "keyword_presence": "Checks whether specific keywords are present in the response.",
+    "response_lenght": "Ensures the response length meets expected constraints.",
+    "toxicity_check": "Detects toxic, offensive, or harmful language in the output.",
+    "bias_detection": "Detects biased or unfair statements.",
+    "hate_speech": "Identifies hate speech, threats, or abusive content.",
+    "hallucination_check": "Checks whether the output contains made-up or hallucinated facts.",
+    "factual_consistency": "Ensures the output is factually consistent with the input context.",
+    "faithfulness": "Measures if the output faithfully represents the source or input.",
+    "answer_relevance": "Checks whether the answer is relevant to the question.",
+    "instruction_following": "Evaluates if the response correctly follows instructions.",
+    "completenes": "Verifies whether the response fully answers the question.",
+    "coherence": "Checks whether the output is logically organized and consistent.",
+    "conciseness_verbosity": "Evaluates if the output is concise or overly verbose.",
+    "reasoning_quality": "Measures logical reasoning quality in the response.",
+    "latency": "Measures the time taken to generate the response.",
+    "token_usage": "Evaluates the number of tokens consumed in the response.",
+    "custom": "Define your own evaluation logic with a custom script or function."
+  };
+
+  return descriptions[value] || "";
+};
+
+
 export default function AiApiCallForm() {
   const [temperature, setTemperature] = useState(0);
   const [provider, setProvider] = useState("OpenAI");
   const [models, setModels] = useState(providerModels["OpenAI"]);
   const [selectedModel, setSelectedModel] = useState(models[0]);
-  const [evaluations, setEvaluations] = useState([{ type: "instruction_following", score: "", retries: 1, customDef: defaultPython }]);
   const [outputExample, setOutputExample] = useState("{\n  \"name\": \"John Doe\",\n  \"age\": 40,\n  \"active\": true,\n  \"hobbies\": [\"reading\",  \"gaming\",  \"music\" ]\n}");
   const [jsonSchema, setJsonSchema] = useState(`{\n  \"type\": \"object\",\n  \"properties\": {\n    \"answer\": { \"type\": \"string\" }\n  }\n}`);
   const [outputValidation, setOutputValidation] = useState("");
@@ -88,6 +147,7 @@ export default function AiApiCallForm() {
   const [account2, setAccount2] = useState("");
   const [evaluatorTool, setEvaluatorTool] = useState("");
   const [sendToEvaluationTool, setSendToEvaluationTool] = useState(false);
+  const [evaluations, setEvaluations] = useState([{ category: "", type: "", customDef: defaultPython }]);
 
   const addFileInput = () => setFileInputs([...fileInputs, ""]);
 
@@ -111,7 +171,24 @@ export default function AiApiCallForm() {
     setSelectedModel(providerModels[provider][0]);
   }, [provider]);
 
-  const handleAddEval = () => setEvaluations([...evaluations, { type: "", score: "", retries: 1, customDef: "" }]);
+  const handleCategoryChange = (idx, newCategory) => {
+    const firstType = evaluationCategories[newCategory]?.[0] || "";
+    setEvaluations((prev) =>
+      prev.map((e, i) =>
+        i === idx
+          ? {
+              ...e,
+              category: newCategory,
+              type: firstType // 🔥 auto select first type
+            }
+          : e
+      )
+    );
+  };
+
+  const handleAddEval = () => {
+    setEvaluations([...evaluations, { category: "", type: "" }]);
+  };
 
   const handleEvalChange = (idx, field, value) => {
     const updated = evaluations.map((e, i) => (i === idx ? { ...e, [field]: value } : e));
@@ -131,13 +208,13 @@ export default function AiApiCallForm() {
   };
 
   const validateJson = (jsonStr, setFeedback) => {
-  try {
-    JSON.parse(jsonStr);
-    setFeedback("✅ Valid JSON");
-  } catch (e) {
-    setFeedback("❌ Invalid JSON: " + e.message);
-  }
-};
+    try {
+      JSON.parse(jsonStr);
+      setFeedback("✅ Valid JSON");
+    } catch (e) {
+      setFeedback("❌ Invalid JSON: " + e.message);
+    }
+  };
 
 const generateSchemaFromExample = () => {
   try {
@@ -177,6 +254,33 @@ const generateSchemaFromExample = () => {
   } catch (e) {
     toast.error("Invalid JSON. Cannot generate schema.");
   }
+};
+
+const getDescription = (value) => {
+  const descriptions = {
+    "format_check": "Verifies if the output matches the expected structural format.",
+    "regex": "Checks if the output matches a defined regex pattern.",
+    "function_calling": "Validates if function calls follow the expected schema.",
+    "keyword_presence": "Checks whether specific keywords are present in the response.",
+    "response_lenght": "Ensures the response length meets expected constraints.",
+    "toxicity_check": "Detects toxic, offensive, or harmful language in the output.",
+    "bias_detection": "Detects biased or unfair statements.",
+    "hate_speech": "Identifies hate speech, threats, or abusive content.",
+    "hallucination_check": "Checks whether the output contains made-up or hallucinated facts.",
+    "factual_consistency": "Ensures the output is factually consistent with the input context.",
+    "faithfulness": "Measures if the output faithfully represents the source or input.",
+    "answer_relevance": "Checks whether the answer is relevant to the question.",
+    "instruction_following": "Evaluates if the response correctly follows instructions.",
+    "completenes": "Verifies whether the response fully answers the question.",
+    "coherence": "Checks whether the output is logically organized and consistent.",
+    "conciseness_verbosity": "Evaluates if the output is concise or overly verbose.",
+    "reasoning_quality": "Measures logical reasoning quality in the response.",
+    "latency": "Measures the time taken to generate the response.",
+    "token_usage": "Evaluates the number of tokens consumed in the response.",
+    "custom": "Define your own evaluation logic with a custom script or function."
+  };
+
+  return descriptions[value] || "";
 };
 
   return (
@@ -423,28 +527,57 @@ const generateSchemaFromExample = () => {
                   <button className="absolute top-2 right-2 text-gray-400 hover:text-red-500" onClick={() => handleRemoveEval(idx)}>
                     <X size={18} />
                   </button>
-                  
                   <div className="mb-4 mt-4">
-                    <label className="block text-sm font-medium text-muted-foreground">Evaluation Type</label>
-                    <Select value={evaluation.type}
-                      onValueChange={(val) => handleEvalChange(idx, "type", val)}
-                    >
+                    <label className="block text-sm font-medium text-muted-foreground">Evaluation Category</label>
+                  <div className="flex flex-col gap-4">
+                    <Select value={evaluation.category} onValueChange={(val) => handleCategoryChange(idx, val)}>
                       <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select type..." />
+                        <SelectValue placeholder="Select evaluation category" />
                       </SelectTrigger>
-
                       <SelectContent>
-                        <SelectItem value="tool_calling">Tool Calling</SelectItem>
-                        <SelectItem value="function_calling">Function Calling</SelectItem>
-                        <SelectItem value="format_check">Format Check</SelectItem>
-                        <SelectItem value="answer_relevance">Answer Relevance</SelectItem>
-                        <SelectItem value="toxicity_check">Toxicity Check</SelectItem>
-                        <SelectItem value="hallucination_check">Hallucination Check</SelectItem>
-                        <SelectItem value="instruction_following">Instruction Following</SelectItem>
-                        <SelectItem value="reasoning_quality">Reasoning Quality</SelectItem>
-                        <SelectItem value="custom">Custom</SelectItem>
+                        {Object.keys(evaluationCategories).map((cat) => (
+                          <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
+                  </div>
+                  <div className="mb-4 mt-4">
+                    <div className="flex items-center gap-4">
+                      <label className="block text-sm font-medium text-muted-foreground">
+                        Evaluation Type
+                      </label>
+                      <label className="text-sm font-normal text-gray-400 italic">
+                        Online evaluations call the configured LLM
+                      </label>
+                    </div>
+                    <Select
+                      value={evaluation.type}
+                      onValueChange={(val) => handleEvalChange(idx, "type", val)}
+                      disabled={!evaluation.category}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue>
+                          {evaluation.type
+                            ? evaluationTypeLabels[evaluation.type]
+                            : evaluation.category
+                            ? "Select evaluation type"
+                            : "Select category first"}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(evaluationCategories[evaluation.category] || []).map((type) => (
+                          <SelectItem key={type} value={type}>
+                            <div className="flex flex-col">
+                              <span>{evaluationTypeLabels[type]}</span>
+                              <span className="text-xs text-gray-400 italic">
+                                {getDescription(type)}
+                              </span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>    
                   </div>
                   {evaluation.type === "custom" && (
                     <div className="mb-2">
@@ -493,6 +626,19 @@ const generateSchemaFromExample = () => {
             </div>
             <hr className="border-t border-muted my-4" />
             <div className="flex items-center gap-4">
+              <label className="block text-sm font-medium text-muted-foreground">Add Evaluations to Output?</label>
+              <label className="inline-flex items-center cursor-pointer">
+                <span className="relative">
+                  <input
+                      type="checkbox"
+                      className="sr-only peer"
+                    />
+                  <div className="w-11 h-6 bg-gray-300 rounded-full peer-checked:bg-black transition-all duration-300"></div>
+                  <div className="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-md transform peer-checked:translate-x-full transition-transform duration-300"></div>
+                </span>
+              </label>
+            </div>
+            <div className="flex items-center gap-4 mt-4">
               <label className="block text-sm font-medium text-muted-foreground">Send Evaluations to Evaluation Tool?</label>
               <label className="inline-flex items-center cursor-pointer">
                 <span className="relative">
@@ -535,7 +681,7 @@ const generateSchemaFromExample = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="acc1">Account Arize</SelectItem>
-                    <SelectItem value="acc2">Account OpenAI</SelectItem>
+                    <SelectItem value="acc2">Account Opik</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
