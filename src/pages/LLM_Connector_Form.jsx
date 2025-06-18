@@ -108,10 +108,18 @@ const evaluationTypeLabels = {
 };
 
 const savedPrompts = [
-  { label: "Summarize", value: "Summarize this article in 3 bullet points." },
-  { label: "Translate", value: "Translate the following text to Spanish." },
-  { label: "Blog Intro", value: "Write a short blog post about AI in education." },
-  { label: "JSON Schema", value: "Create a JSON response matching this schema: { name, age, city }" }
+  {
+    label: "Bullet Summary",
+    value: "Summarize the key points about AI in education in 3 clear bullet points."
+  },
+  {
+    label: "Executive Summary",
+    value: "Write an executive summary highlighting the main impacts of AI in education in a short paragraph."
+  },
+  {
+    label: "One-Sentence Summary",
+    value: "Summarize the role of AI in education in a single, concise sentence."
+  }
 ];
 
 const getDescription = (value) => {
@@ -274,8 +282,9 @@ const generateSchemaFromExample = () => {
         <h1 className="text-lg font-medium mb-2">LLM Connector</h1>
         <Input placeholder="Step Name" className="mb-4" />
         <Tabs defaultValue="provider">
-          <TabsList className="grid w-full grid-cols-4 mb-2">
+          <TabsList className="grid w-full grid-cols-5 mb-2">
             <TabsTrigger value="provider">Model & Input</TabsTrigger>
+            <TabsTrigger value="tools">Tool Calling</TabsTrigger>
             <TabsTrigger value="output">Output Definition</TabsTrigger>
             <TabsTrigger value="eval">Evaluations</TabsTrigger>
              <TabsTrigger value="advanced">Advanced</TabsTrigger>
@@ -481,6 +490,10 @@ const generateSchemaFromExample = () => {
               </Tabs>
             </div>
           </TabsContent>
+
+         <TabsContent value="tools">
+          <h1>WIP</h1>
+         </TabsContent>
 
          <TabsContent value="output">
             <div className="space-y-4">
