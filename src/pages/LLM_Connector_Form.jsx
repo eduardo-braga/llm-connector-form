@@ -133,7 +133,9 @@ const getDescription = (value) => {
 
 
 export default function AiApiCallForm() {
-  const [temperature, setTemperature] = useState(0);
+  const [temperature, setTemperature] = useState(0.1);
+  const [top_p, setTop_p] = useState(0.9);
+  const [top_k, setTop_k] = useState(50);
   const [provider, setProvider] = useState("OpenAI");
   const [models, setModels] = useState(providerModels["OpenAI"]);
   const [selectedModel, setSelectedModel] = useState(models[0]);
@@ -355,6 +357,16 @@ const generateSchemaFromExample = () => {
                       Use double braces <code className="font-mono text-gray-400">{'{{}}'}</code> to access variables
                   </p>
                   <Textarea rows={8} placeholder="What do you want to do?" />
+                  <div className="flex items-center gap-4 mt-4">
+                    <label className="block text-sm font-medium text-muted-foreground">Use web search to get real-time information?</label>
+                    <label className="inline-flex items-center cursor-pointer">
+                      <span className="relative">
+                        <input type="checkbox" className="sr-only peer" />
+                        <div className="w-11 h-6 bg-gray-300 rounded-full peer-checked:bg-black transition-all duration-300"></div>
+                        <div className="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-md transform peer-checked:translate-x-full transition-transform duration-300"></div>
+                      </span>
+                    </label>
+                  </div>
                 </TabsContent>
                 <TabsContent value="system">
                   <Textarea rows={8} placeholder="Define the AI's behavior, tone, personality, and boundaries here." />
@@ -383,7 +395,7 @@ const generateSchemaFromExample = () => {
             <div className="space-y-4">
               <div>
                 <div className="flex justify-between items-center">
-                  <label className="block text-sm font-medium text-muted-foreground">Output Example</label>
+                  <label className="block text-sm font-medium text-muted-foreground">Output Example (Optional)</label>
                   <div className="flex gap-2">
                     <TooltipProvider delayDuration={100}>
                       <Tooltip>
@@ -445,7 +457,7 @@ const generateSchemaFromExample = () => {
 
               <div>
                 <div className="flex justify-between items-center">
-                  <label className="block text-sm font-medium text-muted-foreground">JSON Schema</label>
+                  <label className="block text-sm font-medium text-muted-foreground">JSON Schema (Optional)</label>
                   <div className="flex gap-2">
                     <TooltipProvider delayDuration={100}>
                       <Tooltip>
@@ -833,6 +845,68 @@ const generateSchemaFromExample = () => {
                 />
               </div>
             )}
+
+            <div>
+              <div className="flex items-center gap-1 text-sm font-medium text-muted-foreground mb-1">
+                Model top_p
+                <TooltipProvider delayDuration={100}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <HelpCircle size={14} className="cursor-pointer text-muted-foreground" />
+                    </TooltipTrigger>
+                    <TooltipContent side="right">
+                      top_p (also called "nucleus sampling probability") specifies the cumulative<br />
+                      probability threshold for selecting the next token from the model's probability distribution.<br />
+                      <br />
+                      Common values:<br />
+                      top_p = 1.0: Equivalent to no filtering (all tokens are considered).<br />
+                      top_p = 0.9: Typical default for balanced creativity and coherence.<br />
+                      Lower values (e.g., 0.5): More conservative and deterministic outputs.<br />
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+              <Input
+                type="number"
+                className="!w-32"
+                min="0"
+                max="1"
+                step="0.1"
+                value={parseFloat(top_p || 0).toFixed(1)}
+                onChange={(e) => setTop_p(parseFloat(e.target.value))}
+              />
+            </div>
+
+            <div>
+              <div className="flex items-center gap-1 text-sm font-medium text-muted-foreground mb-1">
+                Model top_k
+                <TooltipProvider delayDuration={100}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <HelpCircle size={14} className="cursor-pointer text-muted-foreground" />
+                    </TooltipTrigger>
+                    <TooltipContent side="right">
+                      top_k specifies the number of most likely tokens the model can choose from when generating the next token.<br />
+                      This limits the sampling pool to the top k highest-probability candidates, filtering out the rest.<br />
+                      <br />
+                      Common values:<br />
+                      top_k = 0: Equivalent to no filtering (all tokens are considered).<br />
+                      top_k = 50: Typical default for creative but coherent outputs.<br />
+                      Lower values (e.g., 5 or 10): More focused and deterministic outputs.<br />
+                      Higher values (e.g., 100 or more): Increases randomness and diversity.<br />
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+              <Input
+                type="number"
+                  min="1"
+                  className="!w-32"
+                  value={top_k}
+                  onChange={(e) => setTop_k(e.target.value)}
+              />
+            </div>
+
           </div>
           </TabsContent>
         </Tabs>
