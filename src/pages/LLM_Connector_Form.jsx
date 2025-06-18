@@ -910,14 +910,24 @@ const generateSchemaFromExample = () => {
           </div>
           </TabsContent>
         </Tabs>
-        <Button
-          className="w-full mt-6"
-          variant="black"
-          size="lg"
-          onClick={() => toast.success("Connector successfully saved!")}
-        >
-          Save
-        </Button>
+        <div className="flex gap-4 mt-6">
+          <Button
+            className="w-[70%]"
+            variant="black"
+            size="lg"
+            onClick={() => toast.success("Connector successfully saved!")}
+          >
+            Save
+          </Button>
+          <Button
+            className="w-[30%]"
+            variant="outline"
+            size="lg"
+            onClick={() => toast("Running connector...")}
+          >
+            Run
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );
