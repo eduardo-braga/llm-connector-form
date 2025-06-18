@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
-import { X, Plus, CheckCircle, Code2, ArrowDown, HelpCircle } from "lucide-react";
+import { X, Plus, CheckCircle, Code2, ArrowDown, HelpCircle, Save, List } from "lucide-react";
 import CodeMirror from "@uiw/react-codemirror";
 import { json } from "@codemirror/lang-json";
 import { python } from "@codemirror/lang-python";
@@ -107,6 +107,13 @@ const evaluationTypeLabels = {
   "custom": "Custom Prompt (Online)"
 };
 
+const savedPrompts = [
+  { label: "Summarize", value: "Summarize this article in 3 bullet points." },
+  { label: "Translate", value: "Translate the following text to Spanish." },
+  { label: "Blog Intro", value: "Write a short blog post about AI in education." },
+  { label: "JSON Schema", value: "Create a JSON response matching this schema: { name, age, city }" }
+];
+
 const getDescription = (value) => {
   const descriptions = {
     "format_check": "Verifies if the output matches the expected structural format.",
@@ -151,6 +158,8 @@ export default function AiApiCallForm() {
   const [evaluatorTool, setEvaluatorTool] = useState("");
   const [sendToEvaluationTool, setSendToEvaluationTool] = useState(false);
   const [evaluations, setEvaluations] = useState([{ category: "", type: "", customDef: promptExample, format: "XML" , regex: "", keywords: "", responseLengthType: "character",  maxResponseLength: ""}]);
+  const [showPromptDropdown, setShowPromptDropdown] = useState(false);
+  const [userPrompt, setUserPrompt] = useState("");
 
   const addFileInput = () => setFileInputs([...fileInputs, ""]);
 
@@ -346,17 +355,96 @@ const generateSchemaFromExample = () => {
                 </div>
                 <div className="w-1/2"/>
               </div>
+              
+              {/* Model & Input SubTabs */}
               <Tabs defaultValue="user">
                 <TabsList className="w-full mb-2 grid grid-cols-3">
                   <TabsTrigger value="user">User Prompt</TabsTrigger>
                   <TabsTrigger value="system">System Prompt</TabsTrigger>
                   <TabsTrigger value="files">Files</TabsTrigger>
                 </TabsList>
-                <TabsContent value="user">
-                  <p className="text-xs text-gray-500 italic">
-                      Use double braces <code className="font-mono text-gray-400">{'{{}}'}</code> to access variables
-                  </p>
-                  <Textarea rows={8} placeholder="What do you want to do?" />
+                
+                {/* User Prompt Tab */}
+                <TabsContent value="user">  
+                  <div className="relative">
+                    {/* Top Row: Label + Button */}
+                    <div className="flex justify-between items-start mb-1">
+                       <p className="text-xs text-gray-500 italic">
+                          Use double braces <code className="font-mono text-gray-400">{'{{}}'}</code> to access variables
+                      </p>
+
+                      <div className="flex items-center gap-2 relative z-10">
+                        {/* Save Prompt Button with Tooltip */}
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    toast.success("Prompt saved!");
+                                  }}
+                                  className="text-sm bg-gray-100 px-2 py-0.5 rounded hover:bg-gray-200 shadow"
+                                >
+                                  <Save size={16} className="text-black-500" />
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent side="top">
+                                Save current prompt
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+
+                        {/* Saved Prompts Button */}
+                        <div className="relative">
+                          {/* Saved Prompts Button with Tooltip */}
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button
+                                  type="button"
+                                  onClick={() => setShowPromptDropdown((prev) => !prev)}
+                                  className="text-sm bg-gray-100 px-2 py-0.5 rounded hover:bg-gray-200 shadow"
+                                >
+                                  <List size={16} className="text-black-500" />
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent side="top">
+                                View saved prompts
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+
+                          {/* Saved Prompts List */}
+                          {showPromptDropdown && (
+                            <div className="absolute right-0 mt-1 w-64 bg-white border border-gray-200 rounded shadow z-10">
+                              {savedPrompts.map((example, idx) => (
+                                <button
+                                  key={idx}
+                                  className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
+                                  onClick={() => {
+                                    setUserPrompt(example.value);
+                                    setShowPromptDropdown(false);
+                                  }}
+                                >
+                                  {example.label}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* User Prompt Textarea */}
+                    <Textarea
+                      rows={8}
+                      value={userPrompt}
+                      onChange={(e) => setUserPrompt(e.target.value)}
+                      placeholder="What do you want to do?"
+                    />
+                  </div>
+
+                  {/* Prompt Web Search */}
                   <div className="flex items-center gap-4 mt-4">
                     <label className="block text-sm font-medium text-muted-foreground">Use web search to get real-time information?</label>
                     <label className="inline-flex items-center cursor-pointer">
@@ -368,6 +456,9 @@ const generateSchemaFromExample = () => {
                     </label>
                   </div>
                 </TabsContent>
+
+
+                {/* System Prompt Tab */}
                 <TabsContent value="system">
                   <Textarea rows={8} placeholder="Define the AI's behavior, tone, personality, and boundaries here." />
                 </TabsContent>
@@ -394,7 +485,7 @@ const generateSchemaFromExample = () => {
          <TabsContent value="output">
             <div className="space-y-4">
               <div>
-                <div className="flex justify-between items-center">
+                <div className="flex justify-between items-center mb-1">
                   <label className="block text-sm font-medium text-muted-foreground">Output Example (Optional)</label>
                   <div className="flex gap-2">
                     <TooltipProvider delayDuration={100}>
@@ -403,6 +494,7 @@ const generateSchemaFromExample = () => {
                           <button
                             type="button"
                             onClick={() => formatJson(setOutputExample, outputExample)}
+                            className="text-sm bg-gray-100 px-2 py-0.5 rounded hover:bg-gray-200 shadow"
                           >
                             <Code2 size={16} className="text-blue-500" />
                           </button>
@@ -416,6 +508,7 @@ const generateSchemaFromExample = () => {
                           <button
                             type="button"
                             onClick={() => validateJson(outputExample, setOutputValidation)}
+                            className="text-sm bg-gray-100 px-2 py-0.5 rounded hover:bg-gray-200 shadow"
                           >
                             <CheckCircle size={16} className="text-green-500" />
                           </button>
@@ -429,6 +522,7 @@ const generateSchemaFromExample = () => {
                           <button
                             type="button"
                             onClick={generateSchemaFromExample}
+                            className="text-sm bg-gray-100 px-2 py-0.5 rounded hover:bg-gray-200 shadow"
                           >
                             <ArrowDown size={16} className="text-purple-500" />
                           </button>
@@ -456,7 +550,7 @@ const generateSchemaFromExample = () => {
               </div>
 
               <div>
-                <div className="flex justify-between items-center">
+                <div className="flex justify-between items-center mb-1">
                   <label className="block text-sm font-medium text-muted-foreground">JSON Schema (Optional)</label>
                   <div className="flex gap-2">
                     <TooltipProvider delayDuration={100}>
@@ -465,6 +559,7 @@ const generateSchemaFromExample = () => {
                           <button
                             type="button"
                             onClick={() => formatJson(setJsonSchema, jsonSchema)}
+                            className="text-sm bg-gray-100 px-2 py-0.5 rounded hover:bg-gray-200 shadow"
                           >
                             <Code2 size={16} className="text-blue-500" />
                           </button>
@@ -478,6 +573,7 @@ const generateSchemaFromExample = () => {
                           <button
                             type="button"
                             onClick={() => validateJson(jsonSchema, setSchemaValidation)}
+                            className="text-sm bg-gray-100 px-2 py-0.5 rounded hover:bg-gray-200 shadow"
                           >
                             <CheckCircle size={16} className="text-green-500" />
                           </button>
