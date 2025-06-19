@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { toast } from 'sonner';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
@@ -312,6 +312,26 @@ const renderedToolChoices = tools
     </SelectItem>
   ));
 
+const dropdownRef = useRef(null);
+
+useEffect(() => {
+  function handleClickOutside(event) {
+    if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+      setShowPromptDropdown(false);
+    }
+  }
+
+  if (showPromptDropdown) {
+    document.addEventListener("mousedown", handleClickOutside);
+  } else {
+    document.removeEventListener("mousedown", handleClickOutside);
+  }
+
+  return () => {
+    document.removeEventListener("mousedown", handleClickOutside);
+  };
+}, [showPromptDropdown]);
+
   return (
     <Card className="max-w-3xl mx-auto mt-8 shadow-2xl rounded-2xl p-4">
       <CardContent>
@@ -461,7 +481,7 @@ const renderedToolChoices = tools
 
                           {/* Saved Prompts List */}
                           {showPromptDropdown && (
-                            <div className="absolute right-0 mt-1 w-64 bg-white border border-gray-200 rounded shadow z-10">
+                            <div className="absolute right-0 mt-1 w-64 bg-white border border-gray-200 rounded shadow z-10" ref={dropdownRef}>
                               {savedPrompts.map((example, idx) => (
                                 <button
                                   key={idx}
@@ -532,7 +552,7 @@ const renderedToolChoices = tools
             <div className="space-y-4 mb-4">
               <label className="text-sm font-medium text-muted-foreground">Tool Choice</label>
               <Select value={toolChoice} onValueChange={setToolChoice}>
-                <SelectTrigger className="w-48 h-8 text-sm px-2">
+                <SelectTrigger className="h-8 text-sm px-2">
                   <SelectValue placeholder="Select tool choice" />
                 </SelectTrigger>
                 <SelectContent>
@@ -541,6 +561,9 @@ const renderedToolChoices = tools
                 {renderedToolChoices}
                 </SelectContent>
               </Select>
+              <p className="text-xs text-gray-500 italic">
+                  Defined functions will appear in the Tool Choice dropdown so you can force the model to call a specific one.
+              </p>
             </div>
 
             <div className="flex flex-col gap-4">
