@@ -148,7 +148,10 @@ const getDescription = (value) => {
 
 
 export default function AiApiCallForm() {
+  
   const [temperature, setTemperature] = useState(0.1);
+  const [tools, setTools] = useState([]);
+  const [toolChoice, setToolChoice] = useState("auto");
   const [top_p, setTop_p] = useState(0.9);
   const [top_k, setTop_k] = useState(50);
   const [provider, setProvider] = useState("OpenAI");
@@ -275,6 +278,39 @@ const generateSchemaFromExample = () => {
     toast.error("Invalid JSON. Cannot generate schema.");
   }
 };
+
+const updateTool = (index, field, value) => {
+  const updated = [...tools];
+  updated[index][field] = value;
+  setTools(updated);
+};
+
+const addTool = () => {
+  setTools([
+    ...tools,
+    {
+      name: "",
+      description: "",
+      parameters: `{
+  "type": "object",
+  "properties": {},
+  "required": []
+}`
+    }
+  ]);
+};
+
+const removeTool = (index) => {
+  setTools(tools.filter((_, i) => i !== index));
+};
+
+const renderedToolChoices = tools
+  .filter((tool) => typeof tool.name === "string" && tool.name.trim() !== "")
+  .map((tool, index) => (
+    <SelectItem key={index} value={tool.name}>
+      Force: {tool.name}
+    </SelectItem>
+  ));
 
   return (
     <Card className="max-w-3xl mx-auto mt-8 shadow-2xl rounded-2xl p-4">
@@ -491,9 +527,76 @@ const generateSchemaFromExample = () => {
             </div>
           </TabsContent>
 
-         <TabsContent value="tools">
-          <h1>WIP</h1>
-         </TabsContent>
+         
+          <TabsContent value="tools">
+            <div className="space-y-4 mb-4">
+              <label className="text-sm font-medium text-muted-foreground">Tool Choice</label>
+              <Select value={toolChoice} onValueChange={setToolChoice}>
+                <SelectTrigger className="w-48 h-8 text-sm px-2">
+                  <SelectValue placeholder="Select tool choice" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  <SelectItem value="auto">Auto</SelectItem>
+                {renderedToolChoices}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex flex-col gap-4">
+              {tools.map((tool, index) => (
+                <Card key={index} className="relative shadow rounded-xl">
+                  <CardContent>
+                    <div className="flex justify-between items-center">
+                      <button className="absolute top-2 right-2 text-gray-400 hover:text-red-500" onClick={() => removeTool(index)}>
+                        <X size={18} />
+                      </button>
+                      
+                    </div>
+                    <div className="mb-2">
+                      <label className="block text-sm font-medium text-muted-foreground mb-1">
+                          Name
+                      </label>
+                      <Input
+                        value={tool.name}
+                        onChange={(e) => updateTool(index, "name", e.target.value)}
+                        placeholder="Function name"
+                      />
+                    </div>
+                    <div className="mb-2">
+                      <label className="block text-sm font-medium text-muted-foreground mb-1">
+                          Description
+                      </label>
+                      <Textarea
+                        value={tool.description}
+                        onChange={(e) => updateTool(index, "description", e.target.value)}
+                        placeholder="Function description"
+                      />
+                    </div>
+                    <label className="block text-sm font-medium text-muted-foreground mb-1">
+                        Parameters (JSON Schema)
+                    </label>
+                    <CodeMirror
+                      value={tool.parameters}
+                      height="200px"
+                      theme={ quietlight }
+                      basicSetup={{
+                              highlightActiveLine: false,
+                              highlightActiveLineGutter: false
+                      }}
+                      extensions={[json()]}
+                      className="font-mono border rounded"
+                    />
+                  </CardContent>
+                </Card>
+              ))}
+
+              <Button variant="outline" onClick={addTool} className="flex gap-2 items-center w-fit self-start">
+                <Plus size={18} />  Add Function
+              </Button>
+            </div>
+          </TabsContent>
+
 
          <TabsContent value="output">
             <div className="space-y-4">
