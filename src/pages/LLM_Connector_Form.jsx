@@ -150,20 +150,26 @@ const getDescription = (value) => {
 
 export default function AiApiCallForm() {
   
-  const [temperature, setTemperature] = useState(0.1);
-  const [tools, setTools] = useState([]);
-  const [toolChoice, setToolChoice] = useState("auto");
-  const [top_p, setTop_p] = useState(0.9);
-  const [top_k, setTop_k] = useState(50);
   const [provider, setProvider] = useState("OpenAI");
   const [models, setModels] = useState(providerModels["OpenAI"]);
   const [selectedModel, setSelectedModel] = useState(models[0]);
+  const [temperature, setTemperature] = useState(0.1);
+  const [top_p, setTop_p] = useState(0.9);
+  const [top_k, setTop_k] = useState(50);
+  const [maxTokens, setMaxTokens] = useState("2048");
+  const [userPrompt, setUserPrompt] = useState("");
+  const [systemPrompt, setSystemPrompt] = useState("");
+  const [fileInputs, setFileInputs] = useState([""]);
+  
+  const [toolChoice, setToolChoice] = useState("auto");
+  const [tools, setTools] = useState([]);
+  
   const [outputExample, setOutputExample] = useState("{\n  \"name\": \"John Doe\",\n  \"age\": 40,\n  \"active\": true,\n  \"hobbies\": [\"reading\",  \"gaming\",  \"music\" ]\n}");
   const [jsonSchema, setJsonSchema] = useState(`{\n  \"type\": \"object\",\n  \"properties\": {\n    \"answer\": { \"type\": \"string\" }\n  }\n}`);
   const [outputValidation, setOutputValidation] = useState("");
   const [schemaValidation, setSchemaValidation] = useState("");
-  const [fileInputs, setFileInputs] = useState([""]);
-  const [maxTokens, setMaxTokens] = useState("2048");
+  
+  
   const [providerUrl, setProviderUrl] = useState("");
   const [account, setAccount] = useState("");
   const [account2, setAccount2] = useState("");
@@ -171,7 +177,6 @@ export default function AiApiCallForm() {
   const [sendToEvaluationTool, setSendToEvaluationTool] = useState(false);
   const [evaluations, setEvaluations] = useState([{ category: "", type: "", customDef: promptExample, format: "XML" , regex: "", keywords: "", responseLengthType: "character",  maxResponseLength: ""}]);
   const [showPromptDropdown, setShowPromptDropdown] = useState(false);
-  const [userPrompt, setUserPrompt] = useState("");
   const [allowWebSearch, SetAllowWebSearch] = useState(false);
   const [webSearch, setWebSearch] = useState({
           search_engine: "google",
@@ -347,6 +352,106 @@ useEffect(() => {
     document.removeEventListener("mousedown", handleClickOutside);
   };
 }, [showPromptDropdown]);
+
+const generateOpenAIResponsesAPIBody = () => {
+  const input = [];
+
+  // 🧠 Inject web search config into user prompt
+  const webContextFromFields = () => {
+    if (!allowWebSearch || !webSearch) return "";
+
+    const {
+      search_engine,
+      site_restriction,
+      region,
+      language,
+      num_results,
+      date_range,
+      result_format,
+      snippet_length,
+      exclude_keywords,
+      query_boost,
+      follow_links_depth,
+      cache_ttl,
+      safe_search,
+      rerank_results
+    } = webSearch;
+
+    const details = [];
+
+    if (search_engine) details.push(`Use "${search_engine}" as the search engine.`);
+    if (site_restriction) details.push(`Limit search to "${site_restriction}".`);
+    if (region) details.push(`Focus results on the "${region}" region.`);
+    if (language) details.push(`Preferred language is "${language}".`);
+    if (num_results) details.push(`Return up to ${num_results} results.`);
+    if (date_range) details.push(`Restrict results to "${date_range}".`);
+    if (result_format) details.push(`Format results as "${result_format}".`);
+    if (snippet_length) details.push(`Each snippet should be about ${snippet_length} characters.`);
+    if (exclude_keywords?.length) details.push(`Exclude results containing: ${exclude_keywords.join(", ")}.`);
+    if (query_boost?.length) details.push(`Prioritize results including: ${query_boost.join(", ")}.`);
+    if (follow_links_depth) details.push(`Follow links up to ${follow_links_depth} levels deep.`);
+    if (cache_ttl) details.push(`Cache results for ${cache_ttl} seconds.`);
+    if (safe_search !== undefined) details.push(`Safe Search is ${safe_search ? "enabled" : "disabled"}.`);
+    if (rerank_results !== undefined) details.push(`Re-rank results using AI: ${rerank_results ? "yes" : "no"}.`);
+
+    return details.length
+      ? `\n\nWeb Search Instructions:\n${details.map(d => `- ${d}`).join("\n")}`
+      : "";
+  };
+
+  const fullUserPrompt = `${userPrompt?.trim() || ""}${webContextFromFields()}`;
+
+  if (systemPrompt?.trim()) {
+    input.push({
+      role: "system",
+      content: systemPrompt.trim(),
+    });
+  }
+
+  if (fullUserPrompt.trim()) {
+    input.push({
+      role: "user",
+      content: fullUserPrompt.trim(),
+    });
+  }
+
+  const body = {
+    model: selectedModel,
+    temperature,
+    top_p,
+    max_tokens: parseInt(maxTokens, 10),
+    input,
+    tools: [],
+  };
+
+  // 🗂 File Search Tool
+  if (fileInputs?.length > 0) {
+    body.tools.push("file_search");
+    body.file_ids = fileInputs;
+  }
+
+  // 🌐 Web Search Tool
+  if (allowWebSearch) {
+    body.tools.push("web_search");
+  }
+
+  // 🧱 Structured Output via Schema (JSON mode)
+  if (jsonSchema) {
+    body.response_format = "json";
+    body.tools.push({
+      type: "function",
+      function: {
+        name: "output_formatter",
+        description: "Format the response using the required structure.",
+        parameters: jsonSchema,
+      },
+    });
+  }
+
+  return body;
+};
+
+
 
   return (
     <Card className="max-w-3xl mx-auto mt-8 shadow-2xl rounded-2xl p-4">
@@ -530,8 +635,12 @@ useEffect(() => {
 
                 {/* System Prompt Tab */}
                 <TabsContent value="system">
-                  <Textarea rows={8} placeholder="Define the AI's behavior, tone, personality, and boundaries here." />
+                  <Textarea value={systemPrompt} 
+                    rows={8} 
+                    onChange={(e) => setSystemPrompt(e.target.value)}
+                    placeholder="Define the AI's behavior, tone, personality, and boundaries here." />
                 </TabsContent>
+                
                 <TabsContent value="files">
                   <p className="text-xs text-gray-500 italic mb-2">
                           Use double braces <code className="font-mono text-gray-400">{'{{}}'}</code> to reference the files
@@ -846,20 +955,6 @@ useEffect(() => {
                   className="font-mono border rounded"
                 />
                 {schemaValidation && <div className="text-sm mt-1 text-gray-600">{schemaValidation}</div>}
-              </div>
-
-              <div className="flex items-center gap-4">
-                <label className="block text-sm font-medium text-muted-foreground">Use function/tool calling if available?</label>
-                <label className="inline-flex items-center cursor-pointer">
-                  <span className="relative">
-                    <input type="checkbox" className="sr-only peer" />
-                    <div className="w-11 h-6 bg-gray-300 rounded-full peer-checked:bg-black transition-all duration-300"></div>
-                    <div className="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-md transform peer-checked:translate-x-full transition-transform duration-300"></div>
-                  </span>
-                </label>
-                <p className="text-xs text-gray-500 italic">
-                      Otherwise the output schema will be sent in the prompt
-                </p>
               </div>
 
             </div>
@@ -1286,8 +1381,30 @@ useEffect(() => {
           >
             Run
           </Button>
+          <TooltipProvider delayDuration={100}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const payload = generateOpenAIResponsesAPIBody();
+                    console.log("Generated LLM Body:", payload);
+                    toast.success("LLM body generated in console and clipboard");
+                    navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
+                  }}
+                  className="text-sm bg-gray-100 px-2 py-0.5 rounded hover:bg-gray-200 shadow"
+                >
+                  <List size={16} className="text-black-500" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>
+                Generate LLM Call Body
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
       </CardContent>
     </Card>
+
   );
 }
