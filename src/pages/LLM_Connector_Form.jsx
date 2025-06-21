@@ -293,7 +293,7 @@ const generateSchemaFromExample = () => {
       return schema;
     };
     const schema = buildSchema(example);
-    setJsonSchema(JSON.stringify(schema, null, 2));
+    setJsonSchema(schema);
     toast.success("Schema successfully generated!");
   } catch (e) {
     toast.error("Invalid JSON. Cannot generate schema.");
@@ -354,9 +354,20 @@ useEffect(() => {
 }, [showPromptDropdown]);
 
 const generateOpenAIResponsesAPIBody = () => {
+  // Basic validation with toast feedback
+  if (!userPrompt || userPrompt.trim() === "") {
+    toast.error("Please enter a user prompt before generating the request body.");
+    throw new Error("User prompt is required.");
+  }
+
+  if (!selectedModel || selectedModel.trim() === "") {
+    toast.error("Please select a model before generating the request body.");
+    throw new Error("Model is required.");
+  }
+
   const input = [];
 
-  // 🧠 Inject web search config into user prompt
+  // Generate dynamic web search instructions from fields
   const webContextFromFields = () => {
     if (!allowWebSearch || !webSearch) return "";
 
@@ -408,12 +419,10 @@ const generateOpenAIResponsesAPIBody = () => {
     });
   }
 
-  if (fullUserPrompt.trim()) {
-    input.push({
-      role: "user",
-      content: fullUserPrompt.trim(),
-    });
-  }
+  input.push({
+    role: "user",
+    content: fullUserPrompt.trim(),
+  });
 
   const body = {
     model: selectedModel,
@@ -424,32 +433,70 @@ const generateOpenAIResponsesAPIBody = () => {
     tools: [],
   };
 
-  // 🗂 File Search Tool
+  // Add file search if file inputs are present
   if (fileInputs?.length > 0) {
     body.tools.push("file_search");
     body.file_ids = fileInputs;
   }
 
-  // 🌐 Web Search Tool
+  // Add web search if enabled
   if (allowWebSearch) {
     body.tools.push("web_search");
   }
 
-  // 🧱 Structured Output via Schema (JSON mode)
+  // Add structured output schema if provided
   if (jsonSchema) {
+    let parsedSchema = jsonSchema;
+    if (typeof jsonSchema === "string") {
+      try {
+        parsedSchema = JSON.parse(jsonSchema);
+      } catch (e) {
+        toast.error("Invalid JSON Schema: could not parse structured output.");
+        throw new Error("Invalid structured output JSON Schema.");
+      }
+    }
+
     body.response_format = "json";
     body.tools.push({
       type: "function",
       function: {
         name: "output_formatter",
         description: "Format the response using the required structure.",
-        parameters: jsonSchema,
+        parameters: parsedSchema,
       },
+    });
+  }
+
+
+  // Add custom tools defined in the Tools tab
+  if (tools && tools.length > 0) {
+    tools.forEach((tool) => {
+      if (tool.name && tool.parameters) {
+        try {
+          const parsedParams =
+            typeof tool.parameters === "string"
+              ? JSON.parse(tool.parameters)
+              : tool.parameters;
+
+          body.tools.push({
+            type: "function",
+            function: {
+              name: tool.name,
+              description: tool.description || "",
+              parameters: parsedParams,
+            },
+          });
+        } catch (err) {
+          toast.error(`Invalid JSON in parameters for function "${tool.name}".`);
+          throw new Error(`Invalid JSON in tool: ${tool.name}`);
+        }
+      }
     });
   }
 
   return body;
 };
+
 
 
 
@@ -462,8 +509,8 @@ const generateOpenAIResponsesAPIBody = () => {
           <TabsList className="grid w-full grid-cols-6 mb-2">
             <TabsTrigger value="provider">Model & Input</TabsTrigger>
             <TabsTrigger value="web">Web Search</TabsTrigger>
-            <TabsTrigger value="tools">Tool Calling</TabsTrigger>
-            <TabsTrigger value="output">Output Definition</TabsTrigger>
+            <TabsTrigger value="tools">Functions</TabsTrigger>
+            <TabsTrigger value="output">Output</TabsTrigger>
             <TabsTrigger value="eval">Evaluations</TabsTrigger>
              <TabsTrigger value="advanced">Advanced</TabsTrigger>
           </TabsList>
@@ -767,6 +814,8 @@ const generateOpenAIResponsesAPIBody = () => {
           </TabsContent>
          
           <TabsContent value="tools">
+            
+            {provider != "OpenAI" && (
             <div className="space-y-4 mb-4">
               <label className="text-sm font-medium text-muted-foreground">Tool Choice</label>
               <Select value={toolChoice} onValueChange={setToolChoice}>
@@ -783,6 +832,7 @@ const generateOpenAIResponsesAPIBody = () => {
                   Defined functions will appear in the Tool Choice dropdown so you can force the model to call a specific one.
               </p>
             </div>
+            )}
 
             <div className="flex flex-col gap-4">
               {tools.map((tool, index) => (
@@ -827,6 +877,7 @@ const generateOpenAIResponsesAPIBody = () => {
                       }}
                       extensions={[json()]}
                       className="font-mono border rounded"
+                      onChange={(value) => updateTool(index, "parameters", value)}
                     />
                   </CardContent>
                 </Card>
@@ -1331,6 +1382,7 @@ const generateOpenAIResponsesAPIBody = () => {
               />
             </div>
 
+            {provider != "OpenAI" && (
             <div>
               <div className="flex items-center gap-1 text-sm font-medium text-muted-foreground mb-1">
                 Model top_k
@@ -1360,7 +1412,7 @@ const generateOpenAIResponsesAPIBody = () => {
                   onChange={(e) => setTop_k(e.target.value)}
               />
             </div>
-
+            )}
           </div>
           </TabsContent>
         </Tabs>
@@ -1381,6 +1433,7 @@ const generateOpenAIResponsesAPIBody = () => {
           >
             Run
           </Button>
+          {provider === "OpenAI" && (
           <TooltipProvider delayDuration={100}>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -1402,6 +1455,7 @@ const generateOpenAIResponsesAPIBody = () => {
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
+          )}
         </div>
       </CardContent>
     </Card>
