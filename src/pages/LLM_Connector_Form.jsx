@@ -170,6 +170,7 @@ export default function AiApiCallForm() {
 
   const [toolChoice, setToolChoice] = useState("auto");
   const [tools, setTools] = useState([]);
+
   
   const [outputExample, setOutputExample] = useState("{\n  \"name\": \"John Doe\",\n  \"age\": 40,\n  \"active\": true,\n  \"hobbies\": [\"reading\",  \"gaming\",  \"music\" ]\n}");
   const [jsonSchema, setJsonSchema] = useState(`{\n  \"type\": \"object\",\n  \"properties\": {\n    \"answer\": { \"type\": \"string\" }\n  }\n}`);
@@ -300,6 +301,7 @@ const addTool = () => {
   setTools([
     ...tools,
     {
+      toolType: "function",
       name: "",
       description: "",
       parameters: `{
@@ -414,14 +416,23 @@ const generateOpenAIResponsesAPIBody = () => {
     content: fullUserPrompt.trim(),
   });
 
+  // Construct payload with correct key order
   const body = {
-    model: selectedModel,
-    temperature,
-    top_p,
-    max_tokens: parseInt(maxTokens, 10),
-    input,
-    tools: [],
-  };
+      model: selectedModel,
+      temperature,
+      top_p,
+      max_tokens: parseInt(maxTokens, 10),
+      background: backgroundMode || undefined,
+      input,
+      file_ids: fileInputs?.length > 0 ? fileInputs : undefined,
+      tools: [],
+      response_format: undefined,
+    };
+
+  // Add backgroundMode if enabled
+  if (backgroundMode) {
+    body.background = true;
+  }
 
   // Add file search if file inputs are present
   if (fileInputs?.length > 0) {
@@ -455,25 +466,48 @@ const generateOpenAIResponsesAPIBody = () => {
 
   // Add custom tools defined in the Tools tab
   if (tools && tools.length > 0) {
-    tools.forEach((tool) => {
-      if (tool.name && tool.parameters) {
-        try {
-          const parsedParams = typeof tool.parameters === "string" ? JSON.parse(tool.parameters) : tool.parameters;
+      tools.forEach((tool) => {
+        // Handle function tools
+        if (tool.toolType === "function" && 
+          tool.name && 
+          tool.parameters) {
+          try {
+            const parsedParams = typeof tool.parameters === "string"
+              ? JSON.parse(tool.parameters)
+              : tool.parameters;
+
+            body.tools.push({
+              type: "function",
+              function: {
+                name: tool.name,
+                description: tool.description || "",
+                parameters: parsedParams,
+              },
+            });
+          } catch (err) {
+            toast.error(`Invalid JSON in parameters for function "${tool.name}".`);
+            throw new Error(`Invalid JSON in tool: ${tool.name}`);
+          }
+        }
+
+        // Handle MCP tools
+        if (
+          tool.toolType === "mcp" &&
+          tool.server_label &&
+          tool.server_url &&
+          tool.auth_token
+        ) {
           body.tools.push({
-            type: "function",
-            function: {
-              name: tool.name,
-              description: tool.description || "",
-              parameters: parsedParams,
+            type: "mcp",
+            server_label: tool.server_label,
+            server_url: tool.server_url,
+            headers: {
+              Authorization: `Bearer ${tool.auth_token}`,
             },
           });
-        } catch (err) {
-          toast.error(`Invalid JSON in parameters for function "${tool.name}".`);
-          throw new Error(`Invalid JSON in tool: ${tool.name}`);
         }
-      }
-    });
-  }
+      });
+    }
 
   return body;
 };
@@ -485,12 +519,12 @@ const generateOpenAIResponsesAPIBody = () => {
         <Input placeholder="Step Name" className="mb-4" />
         <Tabs defaultValue="provider">
           <TabsList className="grid w-full grid-cols-6 mb-2">
-            <TabsTrigger value="provider">Model & Input</TabsTrigger>
-            <TabsTrigger value="web">Web Search</TabsTrigger>
-            <TabsTrigger value="functions">Functions</TabsTrigger>
-            <TabsTrigger value="output">Output</TabsTrigger>
-            <TabsTrigger value="eval">Evaluations</TabsTrigger>
-             <TabsTrigger value="advanced">Advanced</TabsTrigger>
+            <TabsTrigger value="provider" className="text-xs">Model & Input</TabsTrigger>
+            <TabsTrigger value="web" className="text-xs">Web Search</TabsTrigger>
+            <TabsTrigger value="functions" className="text-xs">Functions & MCP</TabsTrigger>
+            <TabsTrigger value="output" className="text-xs">Output</TabsTrigger>
+            <TabsTrigger value="eval" className="text-xs">Evaluations</TabsTrigger>
+             <TabsTrigger value="advanced" className="text-xs">Advanced</TabsTrigger>
           </TabsList>
 
           <TabsContent value="provider">
@@ -791,81 +825,128 @@ const generateOpenAIResponsesAPIBody = () => {
               )}
           </TabsContent>
          
-          <TabsContent value="functions">
-            
-            {provider != "OpenAI" && (
-            <div className="space-y-4 mb-4">
-              <label className="text-sm font-medium text-muted-foreground">Tool Choice</label>
-              <Select value={toolChoice} onValueChange={setToolChoice}>
-                <SelectTrigger className="h-8 text-sm px-2">
-                  <SelectValue placeholder="Select tool choice" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  <SelectItem value="auto">Auto</SelectItem>
-                {renderedToolChoices}
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-gray-500 italic">
-                  Defined functions will appear in the Tool Choice dropdown so you can force the model to call a specific one.
-              </p>
-            </div>
-            )}
+         <TabsContent value="functions">
+              {provider != "OpenAI" && (
+                <div className="space-y-4 mb-4">
+                  <label className="text-sm font-medium text-muted-foreground">Tool Choice</label>
+                  <Select value={toolChoice} onValueChange={setToolChoice}>
+                    <SelectTrigger className="h-8 text-sm px-2">
+                      <SelectValue placeholder="Select tool choice" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">None</SelectItem>
+                      <SelectItem value="auto">Auto</SelectItem>
+                      {renderedToolChoices}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-gray-500 italic">
+                    Defined functions will appear in the Tool Choice dropdown so you can force the model to call a specific one.
+                  </p>
+                </div>
+              )}
 
-            <div className="flex flex-col gap-4">
-              {tools.map((tool, index) => (
-                <Card key={index} className="relative shadow rounded-xl">
-                  <CardContent>
-                    <div className="flex justify-between items-center">
-                      <button className="absolute top-2 right-2 text-gray-400 hover:text-red-500" onClick={() => removeTool(index)}>
-                        <X size={18} />
-                      </button>
-                      
-                    </div>
-                    <div className="mb-2">
-                      <label className="block text-sm font-medium text-muted-foreground mb-1">
-                          Name
-                      </label>
-                      <Input
-                        value={tool.name}
-                        onChange={(e) => updateTool(index, "name", e.target.value)}
-                        placeholder="Function name"
-                      />
-                    </div>
-                    <div className="mb-2">
-                      <label className="block text-sm font-medium text-muted-foreground mb-1">
-                          Description
-                      </label>
-                      <Textarea
-                        value={tool.description}
-                        onChange={(e) => updateTool(index, "description", e.target.value)}
-                        placeholder="Function description"
-                      />
-                    </div>
-                    <label className="block text-sm font-medium text-muted-foreground mb-1">
-                        Parameters (JSON Schema)
-                    </label>
-                    <CodeMirror
-                      value={tool.parameters}
-                      height="200px"
-                      theme={ quietlight }
-                      basicSetup={{
-                              highlightActiveLine: false,
-                              highlightActiveLineGutter: false
-                      }}
-                      extensions={[json()]}
-                      className="font-mono border rounded"
-                      onChange={(value) => updateTool(index, "parameters", value)}
-                    />
-                  </CardContent>
-                </Card>
-              ))}
+              <div className="flex flex-col gap-4">
+                {tools.map((tool, index) => (
+                  <Card key={index}>
+                    <CardContent className="p-4 space-y-3">
+                      <div className="flex justify-between items-center">
+                        <h4 className="font-medium text-sm">Function {index + 1}</h4>
+                        <Button variant="ghost" size="icon" onClick={() => removeTool(index)}>
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
 
-              <Button variant="outline" onClick={addTool} className="flex gap-2 items-center w-fit self-start">
-                <Plus size={18} />  Add Function
-              </Button>
-            </div>
-          </TabsContent>
+                      <div className="space-y-1">
+                        <label className="text-sm font-medium text-muted-foreground">Tool Type</label>
+                        <Select
+                          value={tool.toolType || "function"}
+                          onValueChange={(val) => updateTool(index, "toolType", val)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="function">Custom Function</SelectItem>
+                            <SelectItem value="mcp">MCP Call</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {tool.toolType === "function" && (
+                        <>
+                          <div className="space-y-1">
+                            <label className="text-sm font-medium text-muted-foreground">Function Name</label>
+                            <Input
+                              value={tool.name}
+                              onChange={(e) => updateTool(index, "name", e.target.value)}
+                              placeholder="Function Name"
+                            />
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="text-sm font-medium text-muted-foreground">Description</label>
+                            <Textarea
+                              value={tool.description}
+                              onChange={(e) => updateTool(index, "description", e.target.value)}
+                              placeholder="Function description (optional)"
+                            />
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="text-sm font-medium text-muted-foreground">Parameters (JSON Schema)</label>
+                            <CodeMirror
+                              value={tool.parameters}
+                              height="200px"
+                              extensions={[json()]}
+                              theme={quietlight}
+                              basicSetup={{ lineNumbers: true }}
+                              onChange={(value) => updateTool(index, "parameters", value)}
+                            />
+                          </div>
+                        </>
+                      )}
+
+                      {tool.toolType === "mcp" && (
+                        <>
+                          <div className="space-y-1">
+                            <label className="text-sm font-medium text-muted-foreground">Server Label</label>
+                            <Input
+                              value={tool.server_label}
+                              onChange={(e) => updateTool(index, "server_label", e.target.value)}
+                              placeholder="Server Label"
+                            />
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="text-sm font-medium text-muted-foreground">Server URL</label>
+                            <Input
+                              value={tool.server_url}
+                              onChange={(e) => updateTool(index, "server_url", e.target.value)}
+                              placeholder="Server URL"
+                            />
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="text-sm font-medium text-muted-foreground">Auth Token</label>
+                            <Input
+                              value={tool.auth_token}
+                              onChange={(e) => updateTool(index, "auth_token", e.target.value)}
+                              placeholder="Auth Token"
+                              type="password"
+                            />
+                          </div>
+                        </>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))}
+
+                <Button variant="outline" onClick={addTool} className="flex gap-2 items-center w-fit self-start">
+                  <Plus size={18} /> Add Function
+                </Button>
+              </div>
+            </TabsContent>
+
 
 
          <TabsContent value="output">
