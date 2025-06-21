@@ -14,7 +14,7 @@ import { python } from "@codemirror/lang-python";
 import { quietlight } from "@uiw/codemirror-theme-quietlight";
 import { EditorView } from "@codemirror/view";
 import { Tooltip, TooltipTrigger, TooltipContent,TooltipProvider} from "@/components/ui/tooltip";
-import { Light as SyntaxHighlighter } from "react-syntax-highlighter";
+import SyntaxHighlighter from "react-syntax-highlighter";
 import { atomOneLight } from "react-syntax-highlighter/dist/esm/styles/hljs";
 
 const providerLabels = {
@@ -1557,11 +1557,7 @@ const generateOpenAIResponsesAPIBody = () => {
 
                 {/* Scrollable Content */}
                 <div className="overflow-auto px-4 py-4">
-                  <SyntaxHighlighter
-                    language="json"
-                    style={atomOneLight}
-                    customStyle={{ fontSize: 14 }}
-                  >
+                  <SyntaxHighlighter language="json" style={atomOneLight} customStyle={{ fontSize: 14 }}>
                     {JSON.stringify(generatedPayload, null, 2)}
                   </SyntaxHighlighter>
                 </div>
