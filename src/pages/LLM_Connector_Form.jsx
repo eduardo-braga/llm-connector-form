@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { X, Plus, CheckCircle, Code2, ArrowDown, HelpCircle, Save, List } from "lucide-react";
 import CodeMirror from "@uiw/react-codemirror";
@@ -171,6 +172,21 @@ export default function AiApiCallForm() {
   const [evaluations, setEvaluations] = useState([{ category: "", type: "", customDef: promptExample, format: "XML" , regex: "", keywords: "", responseLengthType: "character",  maxResponseLength: ""}]);
   const [showPromptDropdown, setShowPromptDropdown] = useState(false);
   const [userPrompt, setUserPrompt] = useState("");
+  const [allowWebSearch, SetAllowWebSearch] = useState(false);
+  const [webSearch, setWebSearch] = useState({
+          search_engine: "google",
+          site_restriction: "",
+          region: "us",
+          language: "en",
+          num_results: 10,
+          date_range: "",
+          exclude_keywords: "",
+          query_boost: "",
+          follow_links_depth: 1,
+          cache_ttl: 3600,
+          safe_search: false,
+          rerank_results: true
+        });
 
   const addFileInput = () => setFileInputs([...fileInputs, ""]);
 
@@ -338,8 +354,9 @@ useEffect(() => {
         <h1 className="text-lg font-medium mb-2">LLM Connector</h1>
         <Input placeholder="Step Name" className="mb-4" />
         <Tabs defaultValue="provider">
-          <TabsList className="grid w-full grid-cols-5 mb-2">
+          <TabsList className="grid w-full grid-cols-6 mb-2">
             <TabsTrigger value="provider">Model & Input</TabsTrigger>
+            <TabsTrigger value="web">Web Search</TabsTrigger>
             <TabsTrigger value="tools">Tool Calling</TabsTrigger>
             <TabsTrigger value="output">Output Definition</TabsTrigger>
             <TabsTrigger value="eval">Evaluations</TabsTrigger>
@@ -426,7 +443,7 @@ useEffect(() => {
                 <TabsList className="w-full mb-2 grid grid-cols-3">
                   <TabsTrigger value="user">User Prompt</TabsTrigger>
                   <TabsTrigger value="system">System Prompt</TabsTrigger>
-                  <TabsTrigger value="files">Files</TabsTrigger>
+                  <TabsTrigger value="files">Files Input</TabsTrigger>
                 </TabsList>
                 
                 {/* User Prompt Tab */}
@@ -528,13 +545,15 @@ useEffect(() => {
                   <Textarea rows={8} placeholder="Define the AI's behavior, tone, personality, and boundaries here." />
                 </TabsContent>
                 <TabsContent value="files">
-                  <p className="text-sm text-muted-foreground mb-2">Add the file IDs already uploaded to the model</p>
+                  <p className="text-xs text-gray-500 italic mb-2">
+                          Use double braces <code className="font-mono text-gray-400">{'{{}}'}</code> to reference the files
+                      </p>
                   {fileInputs.map((file, index) => (
                     <div key={index} className="flex gap-2 items-center mb-2">
                       <Input
                         value={file}
                         onChange={(e) => handleFileInputChange(index, e.target.value)}
-                        placeholder={`File name ${index + 1}`}
+                        placeholder={`File path or id ${index + 1}`}
                       />
                       <Button variant="ghost" size="icon" onClick={() => removeFileInput(index)}><X size={16} /></Button>
                     </div>
@@ -547,6 +566,108 @@ useEffect(() => {
             </div>
           </TabsContent>
 
+          <TabsContent value="web">
+              {/* Prompt Web Search */}
+              <div className="flex items-center gap-4">
+                <label className="block text-sm font-medium text-muted-foreground">Use web search to get real-time information?</label>
+                <label className="inline-flex items-center cursor-pointer">
+                  <span className="relative">
+                    <input
+                        type="checkbox"
+                        checked={allowWebSearch}
+                        onChange={(e) => SetAllowWebSearch(e.target.checked)}
+                        className="sr-only peer"
+                      />
+                    <div className="w-11 h-6 bg-gray-300 rounded-full peer-checked:bg-black transition-all duration-300"></div>
+                    <div className="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-md transform peer-checked:translate-x-full transition-transform duration-300"></div>
+                  </span>
+                </label>
+              </div>
+              {allowWebSearch && (
+                <TooltipProvider delayDuration={100}>
+                <div className="grid grid-cols-2 gap-4 mt-4">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <label className="text-sm font-medium">Search Engine</label>
+                      <Tooltip><TooltipTrigger asChild><HelpCircle className="w-3 h-3" /></TooltipTrigger><TooltipContent>Define which search engine to use</TooltipContent></Tooltip>
+                    </div>
+                    <Input value={webSearch.search_engine} onChange={(e) => setWebSearch(prev => ({ ...prev, search_engine: e.target.value }))} placeholder="google, bing, duckduckgo" />
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <label className="text-sm font-medium">Site Restriction</label>
+                      <Tooltip><TooltipTrigger asChild><HelpCircle className="w-3 h-3" /></TooltipTrigger><TooltipContent>Limit search to a specific site</TooltipContent></Tooltip>
+                    </div>
+                    <Input value={webSearch.site_restriction} onChange={(e) => setWebSearch(prev => ({ ...prev, site_restriction: e.target.value }))} placeholder="site:techcrunch.com" />
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <label className="text-sm font-medium">Region</label>
+                      <Tooltip><TooltipTrigger asChild><HelpCircle className="w-3 h-3" /></TooltipTrigger><TooltipContent>Localize search results</TooltipContent></Tooltip>
+                    </div>
+                    <Input value={webSearch.region} onChange={(e) => setWebSearch(prev => ({ ...prev, region: e.target.value }))} placeholder="us, br" />
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <label className="text-sm font-medium">Language</label>
+                      <Tooltip><TooltipTrigger asChild><HelpCircle className="w-3 h-3" /></TooltipTrigger><TooltipContent>Set preferred result language</TooltipContent></Tooltip>
+                    </div>
+                    <Input value={webSearch.language} onChange={(e) => setWebSearch(prev => ({ ...prev, language: e.target.value }))} placeholder="en, pt-BR" />
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <label className="text-sm font-medium">Number of Results</label>
+                      <Tooltip><TooltipTrigger asChild><HelpCircle className="w-3 h-3" /></TooltipTrigger><TooltipContent>Number of results to retrieve</TooltipContent></Tooltip>
+                    </div>
+                    <Input type="number" value={webSearch.num_results} onChange={(e) => setWebSearch(prev => ({ ...prev, num_results: e.target.value }))} placeholder="5" />
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <label className="text-sm font-medium">Date Range</label>
+                      <Tooltip><TooltipTrigger asChild><HelpCircle className="w-3 h-3" /></TooltipTrigger><TooltipContent>Limit to a time period</TooltipContent></Tooltip>
+                    </div>
+                    <Input value={webSearch.date_range} onChange={(e) => setWebSearch(prev => ({ ...prev, date_range: e.target.value }))} placeholder="past 24 hours" />
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <label className="text-sm font-medium">Exclude Keywords</label>
+                      <Tooltip><TooltipTrigger asChild><HelpCircle className="w-3 h-3" /></TooltipTrigger><TooltipContent>Filter out results with these keywords</TooltipContent></Tooltip>
+                    </div>
+                    <Input value={webSearch.exclude_keywords} onChange={(e) => setWebSearch(prev => ({ ...prev, exclude_keywords: e.target.value }))} placeholder="forum, reddit" />
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <label className="text-sm font-medium">Query Boost</label>
+                      <Tooltip><TooltipTrigger asChild><HelpCircle className="w-3 h-3" /></TooltipTrigger><TooltipContent>Add weight to certain keywords</TooltipContent></Tooltip>
+                    </div>
+                    <Input value={webSearch.query_boost} onChange={(e) => setWebSearch(prev => ({ ...prev, query_boost: e.target.value }))} placeholder="official, 2025" />
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <label className="text-sm font-medium">Follow Links Depth</label>
+                      <Tooltip><TooltipTrigger asChild><HelpCircle className="w-3 h-3" /></TooltipTrigger><TooltipContent>Depth for link crawling</TooltipContent></Tooltip>
+                    </div>
+                    <Input type="number" value={webSearch.follow_links_depth} onChange={(e) => setWebSearch(prev => ({ ...prev, follow_links_depth: e.target.value }))} placeholder="1" />
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <label className="text-sm font-medium">Cache TTL</label>
+                      <Tooltip><TooltipTrigger asChild><HelpCircle className="w-3 h-3" /></TooltipTrigger><TooltipContent>Cache duration in seconds</TooltipContent></Tooltip>
+                    </div>
+                    <Input type="number" value={webSearch.cache_ttl} onChange={(e) => setWebSearch(prev => ({ ...prev, cache_ttl: e.target.value }))} placeholder="3600" />
+                  </div>
+                  <div className="flex items-center space-x-2 mt-2">
+                    <Checkbox id="safe_search" checked={webSearch.safe_search} onCheckedChange={(value) => setWebSearch(prev => ({ ...prev, safe_search: value }))} />
+                    <label htmlFor="safe_search" className="text-sm">Enable Safe Search</label>
+                  </div>
+                  <div className="flex items-center space-x-2 mt-2">
+                    <Checkbox id="rerank_results" checked={webSearch.rerank_results} onCheckedChange={(value) => setWebSearch(prev => ({ ...prev, rerank_results: value }))} />
+                    <label htmlFor="rerank_results" className="text-sm">Rerank Results</label>
+                  </div>
+                </div>
+              </TooltipProvider>
+              )}
+          </TabsContent>
          
           <TabsContent value="tools">
             <div className="space-y-4 mb-4">
