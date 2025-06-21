@@ -151,6 +151,9 @@ const getDescription = (value) => {
 export default function AiApiCallForm() {
   
   const [provider, setProvider] = useState("OpenAI");
+  const [providerUrl, setProviderUrl] = useState("");
+  const [account, setAccount] = useState("");
+  const [account2, setAccount2] = useState("");
   const [models, setModels] = useState(providerModels["OpenAI"]);
   const [selectedModel, setSelectedModel] = useState(models[0]);
   const [temperature, setTemperature] = useState(0.1);
@@ -158,9 +161,13 @@ export default function AiApiCallForm() {
   const [top_k, setTop_k] = useState(50);
   const [maxTokens, setMaxTokens] = useState("2048");
   const [userPrompt, setUserPrompt] = useState("");
+  const [showPromptDropdown, setShowPromptDropdown] = useState(false);
   const [systemPrompt, setSystemPrompt] = useState("");
   const [fileInputs, setFileInputs] = useState([""]);
   
+  const [allowWebSearch, SetAllowWebSearch] = useState(false);
+  const [webSearch, setWebSearch] = useState({search_engine: "google",site_restriction: "",region: "us",language: "en",num_results: 10,date_range: "",exclude_keywords: "",query_boost: "",follow_links_depth: 1,cache_ttl: 3600,safe_search: false,rerank_results: true});
+
   const [toolChoice, setToolChoice] = useState("auto");
   const [tools, setTools] = useState([]);
   
@@ -169,29 +176,12 @@ export default function AiApiCallForm() {
   const [outputValidation, setOutputValidation] = useState("");
   const [schemaValidation, setSchemaValidation] = useState("");
   
-  
-  const [providerUrl, setProviderUrl] = useState("");
-  const [account, setAccount] = useState("");
-  const [account2, setAccount2] = useState("");
   const [evaluatorTool, setEvaluatorTool] = useState("");
   const [sendToEvaluationTool, setSendToEvaluationTool] = useState(false);
   const [evaluations, setEvaluations] = useState([{ category: "", type: "", customDef: promptExample, format: "XML" , regex: "", keywords: "", responseLengthType: "character",  maxResponseLength: ""}]);
-  const [showPromptDropdown, setShowPromptDropdown] = useState(false);
-  const [allowWebSearch, SetAllowWebSearch] = useState(false);
-  const [webSearch, setWebSearch] = useState({
-          search_engine: "google",
-          site_restriction: "",
-          region: "us",
-          language: "en",
-          num_results: 10,
-          date_range: "",
-          exclude_keywords: "",
-          query_boost: "",
-          follow_links_depth: 1,
-          cache_ttl: 3600,
-          safe_search: false,
-          rerank_results: true
-        });
+  
+  
+  
 
   const addFileInput = () => setFileInputs([...fileInputs, ""]);
 
@@ -467,7 +457,6 @@ const generateOpenAIResponsesAPIBody = () => {
     });
   }
 
-
   // Add custom tools defined in the Tools tab
   if (tools && tools.length > 0) {
     tools.forEach((tool) => {
@@ -497,9 +486,6 @@ const generateOpenAIResponsesAPIBody = () => {
   return body;
 };
 
-
-
-
   return (
     <Card className="max-w-3xl mx-auto mt-8 shadow-2xl rounded-2xl p-4">
       <CardContent>
@@ -509,7 +495,7 @@ const generateOpenAIResponsesAPIBody = () => {
           <TabsList className="grid w-full grid-cols-6 mb-2">
             <TabsTrigger value="provider">Model & Input</TabsTrigger>
             <TabsTrigger value="web">Web Search</TabsTrigger>
-            <TabsTrigger value="tools">Functions</TabsTrigger>
+            <TabsTrigger value="functions">Functions</TabsTrigger>
             <TabsTrigger value="output">Output</TabsTrigger>
             <TabsTrigger value="eval">Evaluations</TabsTrigger>
              <TabsTrigger value="advanced">Advanced</TabsTrigger>
@@ -813,7 +799,7 @@ const generateOpenAIResponsesAPIBody = () => {
               )}
           </TabsContent>
          
-          <TabsContent value="tools">
+          <TabsContent value="functions">
             
             {provider != "OpenAI" && (
             <div className="space-y-4 mb-4">
@@ -1451,7 +1437,7 @@ const generateOpenAIResponsesAPIBody = () => {
                 </button>
               </TooltipTrigger>
               <TooltipContent>
-                Generate LLM Call Body
+                Generate OpenAI Responses API Call
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
