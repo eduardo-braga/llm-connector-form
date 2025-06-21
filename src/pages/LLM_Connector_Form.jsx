@@ -32,7 +32,7 @@ const providerIcons = {
 };
 
 const providerModels = {
-  OpenAI: ["gpt-4o","gpt-4-turbo","gpt-4","gpt-3.5-turbo"],
+  OpenAI: ["gpt-4o","gpt-4.1", "o3", "o3‑mini", "o4‑mini"],
   Anthropic: ["claude-3-opus","claude-3-sonnet","claude-3-haiku"],
   Google: ["gemini-1.5-pro-latest","gemini-1.5-flash-latest","gemini-pro","gemini-pro-vision"],
   DeepSeek: ["deepseek-coder","deepseek-coder-instruct","deepseek-chat"],
@@ -180,7 +180,7 @@ export default function AiApiCallForm() {
   const [sendToEvaluationTool, setSendToEvaluationTool] = useState(false);
   const [evaluations, setEvaluations] = useState([{ category: "", type: "", customDef: promptExample, format: "XML" , regex: "", keywords: "", responseLengthType: "character",  maxResponseLength: ""}]);
   
-  
+  const [backgroundMode, SetBackgroundMode] = useState(false);
   
 
   const addFileInput = () => setFileInputs([...fileInputs, ""]);
@@ -400,7 +400,7 @@ const generateOpenAIResponsesAPIBody = () => {
       : "";
   };
 
-  const fullUserPrompt = `${userPrompt?.trim() || ""}${webContextFromFields()}`;
+  const fullUserPrompt = `${userPrompt.trim()}${webContextFromFields()}`;
 
   if (systemPrompt?.trim()) {
     input.push({
@@ -434,27 +434,23 @@ const generateOpenAIResponsesAPIBody = () => {
     body.tools.push("web_search");
   }
 
+  // Add backgroundMode if enabled
+  if (backgroundMode) {
+    body.background = true;
+  }
+
   // Add structured output schema if provided
   if (jsonSchema) {
-    let parsedSchema = jsonSchema;
-    if (typeof jsonSchema === "string") {
-      try {
-        parsedSchema = JSON.parse(jsonSchema);
-      } catch (e) {
-        toast.error("Invalid JSON Schema: could not parse structured output.");
-        throw new Error("Invalid structured output JSON Schema.");
-      }
+    try {
+      const parsedSchema = typeof jsonSchema === "string" ? JSON.parse(jsonSchema) : jsonSchema;
+      body.response_format = {
+        type: "json_schema",
+        json_schema: parsedSchema
+      };
+    } catch (err) {
+      toast.error("Invalid JSON Schema for structured output.");
+      throw new Error("Invalid JSON Schema");
     }
-
-    body.response_format = "json";
-    body.tools.push({
-      type: "function",
-      function: {
-        name: "output_formatter",
-        description: "Format the response using the required structure.",
-        parameters: parsedSchema,
-      },
-    });
   }
 
   // Add custom tools defined in the Tools tab
@@ -462,11 +458,7 @@ const generateOpenAIResponsesAPIBody = () => {
     tools.forEach((tool) => {
       if (tool.name && tool.parameters) {
         try {
-          const parsedParams =
-            typeof tool.parameters === "string"
-              ? JSON.parse(tool.parameters)
-              : tool.parameters;
-
+          const parsedParams = typeof tool.parameters === "string" ? JSON.parse(tool.parameters) : tool.parameters;
           body.tools.push({
             type: "function",
             function: {
@@ -1280,6 +1272,21 @@ const generateOpenAIResponsesAPIBody = () => {
               <label className="inline-flex items-center cursor-pointer">
                 <span className="relative">
                   <input type="checkbox" className="sr-only peer" />
+                  <div className="w-11 h-6 bg-gray-300 rounded-full peer-checked:bg-black transition-all duration-300"></div>
+                  <div className="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-md transform peer-checked:translate-x-full transition-transform duration-300"></div>
+                </span>
+              </label>
+            </div>
+
+            <div className="flex items-center gap-4">
+              <label className="block text-sm font-medium text-muted-foreground">Enable Background Mode</label>
+              <label className="inline-flex items-center cursor-pointer">
+                <span className="relative">
+                  <input 
+                    value={backgroundMode} 
+                    type="checkbox" 
+                    className="sr-only peer" 
+                    onChange={(e) => SetBackgroundMode(e.target.checked)}/>
                   <div className="w-11 h-6 bg-gray-300 rounded-full peer-checked:bg-black transition-all duration-300"></div>
                   <div className="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-md transform peer-checked:translate-x-full transition-transform duration-300"></div>
                 </span>
