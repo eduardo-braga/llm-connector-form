@@ -14,6 +14,8 @@ import { python } from "@codemirror/lang-python";
 import { quietlight } from "@uiw/codemirror-theme-quietlight";
 import { EditorView } from "@codemirror/view";
 import { Tooltip, TooltipTrigger, TooltipContent,TooltipProvider} from "@/components/ui/tooltip";
+import { Light as SyntaxHighlighter } from "react-syntax-highlighter";
+import { atomOneLight } from "react-syntax-highlighter/dist/esm/styles/hljs";
 
 const providerLabels = {
   OpenAI: "OpenAI ChatGPT",
@@ -182,6 +184,9 @@ export default function AiApiCallForm() {
   const [evaluations, setEvaluations] = useState([{ category: "", type: "", customDef: promptExample, format: "XML" , regex: "", keywords: "", responseLengthType: "character",  maxResponseLength: ""}]);
   
   const [backgroundMode, SetBackgroundMode] = useState(false);
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [generatedPayload, setGeneratedPayload] = useState(null);
   
 
   const addFileInput = () => setFileInputs([...fileInputs, ""]);
@@ -416,6 +421,9 @@ const generateOpenAIResponsesAPIBody = () => {
     content: fullUserPrompt.trim(),
   });
 
+  // Add file search only if valid file IDs are provided
+  const validFileIds = (fileInputs || []).filter(id => typeof id === "string" && id.trim() !== "");
+
   // Construct payload with correct key order
   const body = {
       model: selectedModel,
@@ -424,7 +432,7 @@ const generateOpenAIResponsesAPIBody = () => {
       max_tokens: parseInt(maxTokens, 10),
       background: backgroundMode || undefined,
       input,
-      file_ids: fileInputs?.length > 0 ? fileInputs : undefined,
+      file_ids: validFileIds.length > 0 ? validFileIds : undefined,
       tools: [],
       response_format: undefined,
     };
@@ -434,10 +442,9 @@ const generateOpenAIResponsesAPIBody = () => {
     body.background = true;
   }
 
-  // Add file search if file inputs are present
-  if (fileInputs?.length > 0) {
+  // Add file search only if valid file IDs are provided
+  if (validFileIds.length > 0) {
     body.tools.push("file_search");
-    body.file_ids = fileInputs;
   }
 
   // Add web search if enabled
@@ -1518,6 +1525,8 @@ const generateOpenAIResponsesAPIBody = () => {
                     console.log("Generated LLM Body:", payload);
                     toast.success("LLM body generated in console and clipboard");
                     navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
+                    setGeneratedPayload(payload);
+                    setIsModalOpen(true);
                   }}
                   className="text-sm bg-gray-100 px-2 py-0.5 rounded hover:bg-gray-200 shadow"
                 >
@@ -1530,6 +1539,36 @@ const generateOpenAIResponsesAPIBody = () => {
             </Tooltip>
           </TooltipProvider>
           )}
+
+          {isModalOpen && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+              <div className="bg-white rounded-lg shadow-lg max-w-3xl w-full h-[80vh] overflow-hidden relative flex flex-col">
+                
+                {/* Sticky Header */}
+                <div className="sticky top-0 bg-white z-10 flex justify-between items-center px-4 py-3 border-b">
+                  <h2 className="text-lg font-semibold">Generated OpenAI Responses API Body</h2>
+                  <button
+                    onClick={() => setIsModalOpen(false)}
+                    className="text-gray-500 hover:text-black"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                {/* Scrollable Content */}
+                <div className="overflow-auto px-4 py-4">
+                  <SyntaxHighlighter
+                    language="json"
+                    style={atomOneLight}
+                    customStyle={{ fontSize: 14 }}
+                  >
+                    {JSON.stringify(generatedPayload, null, 2)}
+                  </SyntaxHighlighter>
+                </div>
+              </div>
+            </div>
+          )}
+
         </div>
       </CardContent>
     </Card>
