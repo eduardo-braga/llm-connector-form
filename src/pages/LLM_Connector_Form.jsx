@@ -289,7 +289,7 @@ const generateSchemaFromExample = () => {
       return schema;
     };
     const schema = buildSchema(example);
-    setJsonSchema(schema);
+    setJsonSchema(JSON.stringify(schema, null, 2));
     toast.success("Schema successfully generated!");
   } catch (e) {
     toast.error("Invalid JSON. Cannot generate schema.");
@@ -559,17 +559,17 @@ const generateOpenAIResponsesAPIBody = () => {
 
   if (backgroundMode) body.background = true;
 
-  // ✅ Add file_search tool correctly
+  // Add file_search tool correctly
   if (validFileIds.length > 0) {
     body.tools.push({ type: "tool", tool_name: "file_search" });
   }
 
-  // ✅ Add web_search tool correctly
+  // Add web_search tool correctly
   if (allowWebSearch) {
-    body.tools.push({ type: "tool", tool_name: "web_search" });
+    body.tools.push({ type: "tool", tool_name: "web_search_preview" });
   }
 
-  // ✅ Add structured output if provided
+  // Add structured output if provided
   if (jsonSchema) {
     try {
       const parsedSchema = typeof jsonSchema === "string" ? JSON.parse(jsonSchema) : jsonSchema;
@@ -583,7 +583,7 @@ const generateOpenAIResponsesAPIBody = () => {
     }
   }
 
-  // ✅ Add custom tools
+  // Add custom tools
   if (tools && tools.length > 0) {
     tools.forEach((tool) => {
       // Function tool
@@ -1734,7 +1734,7 @@ const generateOpenAIResponsesAPIBody = () => {
                     customStyle={{ fontSize: 14 }}
                   >
                     {llmResponse
-                      ? llmResponse
+                      ? JSON.stringify(llmResponse, null, 2)
                       : JSON.stringify(generatedPayload, null, 2)}
                   </SyntaxHighlighter>
                 </div>
