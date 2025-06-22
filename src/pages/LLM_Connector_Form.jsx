@@ -167,7 +167,7 @@ export default function AiApiCallForm() {
   const [systemPrompt, setSystemPrompt] = useState("");
   const [fileInputs, setFileInputs] = useState([""]);
   
-  const [allowWebSearch, SetAllowWebSearch] = useState(false);
+  const [allowWebSearch, setAllowWebSearch] = useState(false);
   const [webSearch, setWebSearch] = useState({search_engine: "google",site_restriction: "",region: "us",language: "en",num_results: 10,date_range: "",exclude_keywords: "",query_boost: "",follow_links_depth: 1,cache_ttl: 3600,safe_search: false,rerank_results: true});
 
   const [toolChoice, setToolChoice] = useState("auto");
@@ -181,9 +181,9 @@ export default function AiApiCallForm() {
   
   const [evaluatorTool, setEvaluatorTool] = useState("");
   const [sendToEvaluationTool, setSendToEvaluationTool] = useState(false);
-  const [evaluations, setEvaluations] = useState([{ category: "", type: "", customDef: promptExample, format: "XML" , regex: "", keywords: "", responseLengthType: "character",  maxResponseLength: ""}]);
+  const [evaluations, setEvaluations] = useState([{ category: "", type: "", customDef: promptExample, format: "XML" , regex: "", keywords: "", responseLengthType: "character",  maxResponseLength: "", stop: false}]);
   
-  const [backgroundMode, SetBackgroundMode] = useState(false);
+  const [backgroundMode, setBackgroundMode] = useState(false);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [generatedPayload, setGeneratedPayload] = useState(null);
@@ -349,6 +349,137 @@ useEffect(() => {
     document.removeEventListener("mousedown", handleClickOutside);
   };
 }, [showPromptDropdown]);
+
+const saveConnectorConfigToFile = () => {
+  try {
+    const config = {
+      provider,
+      providerUrl,
+      account,
+      account2,
+      selectedModel,
+      temperature,
+      top_p,
+      top_k,
+      maxTokens,
+      userPrompt,
+      systemPrompt,
+      fileInputs,
+      allowWebSearch,
+      webSearch,
+      toolChoice,
+      tools: tools.map((tool) => ({
+        ...tool,
+        parameters:
+          typeof tool.parameters === "string"
+            ? JSON.parse(tool.parameters)
+            : tool.parameters,
+      })),
+      outputExample: (() => {
+        try {
+          return typeof outputExample === "string"
+            ? JSON.parse(outputExample)
+            : outputExample;
+        } catch {
+          return outputExample; // fallback
+        }
+      })(),
+      jsonSchema: (() => {
+        try {
+          return typeof jsonSchema === "string"
+            ? JSON.parse(jsonSchema)
+            : jsonSchema;
+        } catch {
+          return jsonSchema; // fallback
+        }
+      })(),
+      backgroundMode,
+      evaluatorTool,
+      sendToEvaluationTool,
+      evaluations,
+    };
+
+    const blob = new Blob([JSON.stringify(config, null, 2)], {
+      type: "application/json",
+    });
+
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "connector-config.json";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    toast.success("Configuration saved as JSON!");
+  } catch (err) {
+    console.error("Error saving configuration:", err);
+    toast.error("Failed to save configuration.");
+  }
+};
+
+
+const fileInputRef = useRef(null);
+
+const handleImportClick = () => {
+  fileInputRef.current?.click();
+};
+
+const importConnectorConfigFromFile = (event) => {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const config = JSON.parse(e.target.result);
+
+      setProvider(config.provider);
+      setProviderUrl(config.providerUrl);
+      setAccount(config.account);
+      setAccount2(config.account2);
+      setSelectedModel(config.selectedModel);
+      setTemperature(config.temperature);
+      setTop_p(config.top_p);
+      setTop_k(config.top_k);
+      setMaxTokens(config.maxTokens);
+      setUserPrompt(config.userPrompt);
+      setSystemPrompt(config.systemPrompt);
+      setFileInputs(config.fileInputs || []);
+      setAllowWebSearch(config.allowWebSearch);
+      setWebSearch(config.webSearch || {});
+      setToolChoice(config.toolChoice);
+      setTools(
+        (config.tools || []).map((tool) => ({
+          ...tool,
+          parameters: typeof tool.parameters === "string"
+            ? tool.parameters
+            : JSON.stringify(tool.parameters, null, 2),
+        }))
+      );
+      setOutputExample(
+        typeof config.outputExample === "string"
+          ? config.outputExample
+          : JSON.stringify(config.outputExample, null, 2)
+      );
+      setJsonSchema(
+        typeof config.jsonSchema === "string"
+          ? config.jsonSchema
+          : JSON.stringify(config.jsonSchema, null, 2)
+      );
+      setBackgroundMode(config.backgroundMode);
+      setEvaluatorTool(config.evaluatorTool);
+      setSendToEvaluationTool(config.sendToEvaluationTool);
+      setEvaluations(config.evaluations || []);
+
+      toast.success("Configuration imported successfully!");
+    } catch (err) {
+      console.error("Import error:", err);
+      toast.error("Invalid JSON configuration.");
+    }
+  };
+
+  reader.readAsText(file);
+};
 
 const generateOpenAIResponsesAPIBody = () => {
   // Basic validation with toast feedback
@@ -738,7 +869,7 @@ const generateOpenAIResponsesAPIBody = () => {
                     <input
                         type="checkbox"
                         checked={allowWebSearch}
-                        onChange={(e) => SetAllowWebSearch(e.target.checked)}
+                        onChange={(e) => setAllowWebSearch(e.target.checked)}
                         className="sr-only peer"
                       />
                     <div className="w-11 h-6 bg-gray-300 rounded-full peer-checked:bg-black transition-all duration-300"></div>
@@ -953,8 +1084,6 @@ const generateOpenAIResponsesAPIBody = () => {
                 </Button>
               </div>
             </TabsContent>
-
-
 
          <TabsContent value="output">
             <div className="space-y-4">
@@ -1263,7 +1392,10 @@ const generateOpenAIResponsesAPIBody = () => {
                       <label className="block text-sm font-medium text-muted-foreground">Stop execution if this evaluation fails?</label>
                       <label className="inline-flex items-center cursor-pointer">
                         <span className="relative">
-                          <input type="checkbox" className="sr-only peer" />
+                          <input checked={evaluation.stop}
+                            onChange={(e) => handleEvalChange(idx, 'stop', e.target.checked)}
+                            type="checkbox" 
+                            className="sr-only peer" />
                           <div className="w-11 h-6 bg-gray-300 rounded-full peer-checked:bg-black transition-all duration-300"></div>
                           <div className="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-md transform peer-checked:translate-x-full transition-transform duration-300"></div>
                         </span>
@@ -1374,7 +1506,7 @@ const generateOpenAIResponsesAPIBody = () => {
                     value={backgroundMode} 
                     type="checkbox" 
                     className="sr-only peer" 
-                    onChange={(e) => SetBackgroundMode(e.target.checked)}/>
+                    onChange={(e) => setBackgroundMode(e.target.checked)}/>
                   <div className="w-11 h-6 bg-gray-300 rounded-full peer-checked:bg-black transition-all duration-300"></div>
                   <div className="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-md transform peer-checked:translate-x-full transition-transform duration-300"></div>
                 </span>
@@ -1498,11 +1630,31 @@ const generateOpenAIResponsesAPIBody = () => {
           </TabsContent>
         </Tabs>
         <div className="flex gap-4 mt-6">
+          
+
           <Button
-            className="w-[70%]"
+            className="w-[20%]"
+            variant="outline"
+            size="lg"
+            onClick={handleImportClick}
+          >
+            Import
+          </Button>
+
+          <input
+            type="file"
+            accept=".json"
+            ref={fileInputRef}
+            style={{ display: "none" }}
+            onChange={importConnectorConfigFromFile}
+          />
+
+
+          <Button
+            className="w-[50%]"
             variant="black"
             size="lg"
-            onClick={() => toast.success("Connector successfully saved!")}
+            onClick={saveConnectorConfigToFile}
           >
             Save
           </Button>
