@@ -482,7 +482,6 @@ const importConnectorConfigFromFile = (event) => {
 };
 
 const generateOpenAIResponsesAPIBody = () => {
-  // Basic validation with toast feedback
   if (!userPrompt || userPrompt.trim() === "") {
     toast.error("Please enter a user prompt before generating the request body.");
     throw new Error("User prompt is required.");
@@ -495,7 +494,6 @@ const generateOpenAIResponsesAPIBody = () => {
 
   const input = [];
 
-  // Generate dynamic web search instructions from fields
   const webContextFromFields = () => {
     if (!allowWebSearch || !webSearch) return "";
 
@@ -541,54 +539,37 @@ const generateOpenAIResponsesAPIBody = () => {
   const fullUserPrompt = `${userPrompt.trim()}${webContextFromFields()}`;
 
   if (systemPrompt?.trim()) {
-    input.push({
-      role: "system",
-      content: systemPrompt.trim(),
-    });
+    input.push({ role: "system", content: systemPrompt.trim() });
   }
 
-  input.push({
-    role: "user",
-    content: fullUserPrompt.trim(),
-  });
+  input.push({ role: "user", content: fullUserPrompt.trim() });
 
-  // Add file search only if valid file IDs are provided
   const validFileIds = (fileInputs || []).filter(id => typeof id === "string" && id.trim() !== "");
 
-  // Construct payload with correct key order
   const body = {
-      model: selectedModel,
-      temperature,
-      top_p,
-      //max_tokens: parseInt(maxTokens, 10),
-      background: backgroundMode || undefined,
-      input,
-      file_ids: validFileIds.length > 0 ? validFileIds : undefined,
-      tools: [],
-      response_format: undefined,
-    };
+    model: selectedModel,
+    temperature,
+    top_p,
+    background: backgroundMode || undefined,
+    input,
+    file_ids: validFileIds.length > 0 ? validFileIds : undefined,
+    tools: [],
+    response_format: undefined,
+  };
 
-  // Add backgroundMode if enabled
-  if (backgroundMode) {
-    body.background = true;
-  }
+  if (backgroundMode) body.background = true;
 
-  // Add file search only if valid file IDs are provided
+  // ✅ Add file_search tool correctly
   if (validFileIds.length > 0) {
-    body.tools.push("file_search");
+    body.tools.push({ type: "tool", tool_name: "file_search" });
   }
 
-  // Add web search if enabled
+  // ✅ Add web_search tool correctly
   if (allowWebSearch) {
-    body.tools.push("web_search");
+    body.tools.push({ type: "tool", tool_name: "web_search" });
   }
 
-  // Add backgroundMode if enabled
-  if (backgroundMode) {
-    body.background = true;
-  }
-
-  // Add structured output schema if provided
+  // ✅ Add structured output if provided
   if (jsonSchema) {
     try {
       const parsedSchema = typeof jsonSchema === "string" ? JSON.parse(jsonSchema) : jsonSchema;
@@ -602,50 +583,48 @@ const generateOpenAIResponsesAPIBody = () => {
     }
   }
 
-  // Add custom tools defined in the Tools tab
+  // ✅ Add custom tools
   if (tools && tools.length > 0) {
-      tools.forEach((tool) => {
-        // Handle function tools
-        if (tool.toolType === "function" && 
-          tool.name && 
-          tool.parameters) {
-          try {
-            const parsedParams = typeof tool.parameters === "string"
-              ? JSON.parse(tool.parameters)
-              : tool.parameters;
+    tools.forEach((tool) => {
+      // Function tool
+      if (tool.toolType === "function" && tool.name && tool.parameters) {
+        try {
+          const parsedParams = typeof tool.parameters === "string"
+            ? JSON.parse(tool.parameters)
+            : tool.parameters;
 
-            body.tools.push({
-              type: "function",
-              function: {
-                name: tool.name,
-                description: tool.description || "",
-                parameters: parsedParams,
-              },
-            });
-          } catch (err) {
-            toast.error(`Invalid JSON in parameters for function "${tool.name}".`);
-            throw new Error(`Invalid JSON in tool: ${tool.name}`);
-          }
-        }
-
-        // Handle MCP tools
-        if (
-          tool.toolType === "mcp" &&
-          tool.server_label &&
-          tool.server_url &&
-          tool.auth_token
-        ) {
           body.tools.push({
-            type: "mcp",
-            server_label: tool.server_label,
-            server_url: tool.server_url,
-            headers: {
-              Authorization: `Bearer ${tool.auth_token}`,
+            type: "function",
+            function: {
+              name: tool.name,
+              description: tool.description || "",
+              parameters: parsedParams,
             },
           });
+        } catch (err) {
+          toast.error(`Invalid JSON in parameters for function "${tool.name}".`);
+          throw new Error(`Invalid JSON in tool: ${tool.name}`);
         }
-      });
-    }
+      }
+
+      // MCP tool
+      if (
+        tool.toolType === "mcp" &&
+        tool.server_label &&
+        tool.server_url &&
+        tool.auth_token
+      ) {
+        body.tools.push({
+          type: "mcp",
+          server_label: tool.server_label,
+          server_url: tool.server_url,
+          headers: {
+            Authorization: `Bearer ${tool.auth_token}`,
+          },
+        });
+      }
+    });
+  }
 
   return body;
 };
