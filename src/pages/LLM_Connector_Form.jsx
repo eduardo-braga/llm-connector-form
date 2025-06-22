@@ -573,10 +573,10 @@ const generateOpenAIResponsesAPIBody = () => {
   if (jsonSchema) {
     try {
       const parsedSchema = typeof jsonSchema === "string" ? JSON.parse(jsonSchema) : jsonSchema;
-      body.response_format = {
-        type: "json_schema",
-        json_schema: parsedSchema
-      };
+      body.text = {
+          format: "json",
+          schema: parsedSchema
+        };
     } catch (err) {
       toast.error("Invalid JSON Schema for structured output.");
       throw new Error("Invalid JSON Schema");
@@ -1734,7 +1734,7 @@ const generateOpenAIResponsesAPIBody = () => {
                     customStyle={{ fontSize: 14 }}
                   >
                     {llmResponse
-                      ? JSON.stringify(llmResponse, null, 2)
+                      ? JSON.stringify(JSON.parse(llmResponse), null, 2)
                       : JSON.stringify(generatedPayload, null, 2)}
                   </SyntaxHighlighter>
                 </div>
