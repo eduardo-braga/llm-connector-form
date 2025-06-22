@@ -34,7 +34,7 @@ const providerIcons = {
 };
 
 const providerModels = {
-  OpenAI: ["gpt-4o","gpt-4.1", "o3", "o3‑mini", "o4‑mini"],
+  OpenAI: ["gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano", "o1-pro", "o1", "o3‑mini", "gpt-4o", "gpt-4o‑mini", "gpt-4.5-preview"],
   Anthropic: ["claude-3-opus","claude-3-sonnet","claude-3-haiku"],
   Google: ["gemini-1.5-pro-latest","gemini-1.5-flash-latest","gemini-pro","gemini-pro-vision"],
   DeepSeek: ["deepseek-coder","deepseek-coder-instruct","deepseek-chat"],
@@ -157,7 +157,7 @@ export default function AiApiCallForm() {
   const [account, setAccount] = useState("");
   const [account2, setAccount2] = useState("");
   const [models, setModels] = useState(providerModels["OpenAI"]);
-  const [selectedModel, setSelectedModel] = useState(models[0]);
+  const [selectedModel, setSelectedModel] = useState(providerModels["OpenAI"][0]);
   const [temperature, setTemperature] = useState(0.1);
   const [top_p, setTop_p] = useState(0.9);
   const [top_k, setTop_k] = useState(50);
@@ -184,10 +184,12 @@ export default function AiApiCallForm() {
   const [evaluations, setEvaluations] = useState([{ category: "", type: "", customDef: promptExample, format: "XML" , regex: "", keywords: "", responseLengthType: "character",  maxResponseLength: "", stop: false}]);
   
   const [backgroundMode, setBackgroundMode] = useState(false);
+  const [storeLogsProvider, setStoreLogsProvider] = useState(true);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [generatedPayload, setGeneratedPayload] = useState(null);
   const [llmResponse, setLlmResponse] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   const addFileInput = () => setFileInputs([...fileInputs, ""]);
 
@@ -207,8 +209,12 @@ export default function AiApiCallForm() {
   }, [sendToEvaluationTool]);
 
   useEffect(() => {
-    setModels(providerModels[provider]);
-    setSelectedModel(providerModels[provider][0]);
+    const availableModels = providerModels[provider];
+    setModels(availableModels);
+
+    if (!availableModels.includes(selectedModel)) {
+      setSelectedModel(availableModels[0]);
+    }
   }, [provider]);
 
   const handleCategoryChange = (idx, newCategory) => {
@@ -361,6 +367,7 @@ const saveConnectorConfigToFile = () => {
       temperature,
       top_p,
       top_k,
+      storeLogsProvider,
       maxTokens,
       userPrompt,
       systemPrompt,
@@ -442,6 +449,7 @@ const importConnectorConfigFromFile = (event) => {
       setTop_p(config.top_p);
       setTop_k(config.top_k);
       setMaxTokens(config.maxTokens);
+      setStoreLogsProvider(config.storeLogsProvider);
       setUserPrompt(config.userPrompt);
       setSystemPrompt(config.systemPrompt);
       setFileInputs(config.fileInputs || []);
@@ -524,8 +532,12 @@ const generateOpenAIResponsesAPIBody = () => {
     if (date_range) details.push(`Restrict results to "${date_range}".`);
     if (result_format) details.push(`Format results as "${result_format}".`);
     if (snippet_length) details.push(`Each snippet should be about ${snippet_length} characters.`);
-    if (exclude_keywords?.length) details.push(`Exclude results containing: ${exclude_keywords.join(", ")}.`);
-    if (query_boost?.length) details.push(`Prioritize results including: ${query_boost.join(", ")}.`);
+    if (Array.isArray(exclude_keywords) && exclude_keywords.length) {
+        details.push(`Exclude results containing: ${exclude_keywords.join(", ")}.`);
+      }
+      if (Array.isArray(query_boost) && query_boost.length) {
+        details.push(`Prioritize results including: ${query_boost.join(", ")}.`);
+      }
     if (follow_links_depth) details.push(`Follow links up to ${follow_links_depth} levels deep.`);
     if (cache_ttl) details.push(`Cache results for ${cache_ttl} seconds.`);
     if (safe_search !== undefined) details.push(`Safe Search is ${safe_search ? "enabled" : "disabled"}.`);
@@ -550,38 +562,63 @@ const generateOpenAIResponsesAPIBody = () => {
     model: selectedModel,
     temperature,
     top_p,
-    background: backgroundMode || undefined,
+    background: backgroundMode || false,
+    store: storeLogsProvider || false,
     input,
     file_ids: validFileIds.length > 0 ? validFileIds : undefined,
+    tool_choice: toolChoice,
     tools: [],
     response_format: undefined,
   };
 
-  if (backgroundMode) body.background = true;
-
   // Add file_search tool correctly
   if (validFileIds.length > 0) {
-    body.tools.push({ type: "tool", tool_name: "file_search" });
+    body.tools.push({ type: "file_search"});
   }
 
   // Add web_search tool correctly
   if (allowWebSearch) {
-    body.tools.push({ type: "tool", tool_name: "web_search_preview" });
+    body.tools.push({ type: "web_search_preview"});
   }
 
-  // Add structured output if provided
+  // Structured output using `text.format`
   if (jsonSchema) {
-    try {
-      const parsedSchema = typeof jsonSchema === "string" ? JSON.parse(jsonSchema) : jsonSchema;
-      body.text = {
-          format: "json",
-          schema: parsedSchema
+      try {
+        const parsedSchema = typeof jsonSchema === "string"
+          ? JSON.parse(jsonSchema)
+          : JSON.parse(JSON.stringify(jsonSchema)); // deep copy
+
+        // Recursively enforce additionalProperties: false
+        const enforceNoAdditionalProps = (schema) => {
+          if (schema?.type === "object") {
+            if (!("additionalProperties" in schema)) {
+              schema.additionalProperties = false;
+            }
+            if (schema.properties) {
+              for (const key in schema.properties) {
+                enforceNoAdditionalProps(schema.properties[key]);
+              }
+            }
+          } else if (schema?.type === "array" && schema.items) {
+            enforceNoAdditionalProps(schema.items);
+          }
         };
-    } catch (err) {
-      toast.error("Invalid JSON Schema for structured output.");
-      throw new Error("Invalid JSON Schema");
+
+        enforceNoAdditionalProps(parsedSchema);
+
+        body.text = {
+          format: {
+            type: "json_schema",
+            name: "structured_output",
+            strict: true,
+            schema: parsedSchema,
+          },
+        };
+      } catch (err) {
+        toast.error("Invalid JSON Schema for structured output.");
+        throw new Error("Invalid JSON Schema");
+      }
     }
-  }
 
   // Add custom tools
   if (tools && tools.length > 0) {
@@ -943,24 +980,24 @@ const generateOpenAIResponsesAPIBody = () => {
           </TabsContent>
          
          <TabsContent value="functions">
-              {provider != "OpenAI" && (
-                <div className="space-y-4 mb-4">
-                  <label className="text-sm font-medium text-muted-foreground">Tool Choice</label>
-                  <Select value={toolChoice} onValueChange={setToolChoice}>
-                    <SelectTrigger className="h-8 text-sm px-2">
-                      <SelectValue placeholder="Select tool choice" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">None</SelectItem>
-                      <SelectItem value="auto">Auto</SelectItem>
-                      {renderedToolChoices}
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-gray-500 italic">
-                    Defined functions will appear in the Tool Choice dropdown so you can force the model to call a specific one.
-                  </p>
-                </div>
-              )}
+              
+              <div className="space-y-4 mb-4">
+                <label className="text-sm font-medium text-muted-foreground">Tool Choice</label>
+                <Select value={toolChoice} onValueChange={setToolChoice}>
+                  <SelectTrigger className="h-8 text-sm px-2">
+                    <SelectValue placeholder="Select tool choice" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    <SelectItem value="auto">Auto</SelectItem>
+                    {renderedToolChoices}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-gray-500 italic">
+                  Defined functions will appear in the Tool Choice dropdown so you can force the model to call a specific one.
+                </p>
+              </div>
+              
 
               <div className="flex flex-col gap-4">
                 {tools.map((tool, index) => (
@@ -1454,7 +1491,24 @@ const generateOpenAIResponsesAPIBody = () => {
           
 
           <TabsContent value="advanced">
+          
           <div className="space-y-4">
+            
+            <div className="flex items-center gap-4">
+              <label className="block text-sm font-medium text-muted-foreground">Store Logs on Provider</label>
+              <label className="inline-flex items-center cursor-pointer">
+                <span className="relative">
+                  <input 
+                    checked={storeLogsProvider} 
+                    onChange={(e) => setStoreLogsProvider(e.target.checked)}
+                    type="checkbox" 
+                    className="sr-only peer" />
+                  <div className="w-11 h-6 bg-gray-300 rounded-full peer-checked:bg-black transition-all duration-300"></div>
+                  <div className="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-md transform peer-checked:translate-x-full transition-transform duration-300"></div>
+                </span>
+              </label>
+            </div>
+
             <div className="flex items-center gap-4">
               <label className="block text-sm font-medium text-muted-foreground">Log Costs</label>
               <label className="inline-flex items-center cursor-pointer">
@@ -1482,10 +1536,11 @@ const generateOpenAIResponsesAPIBody = () => {
               <label className="inline-flex items-center cursor-pointer">
                 <span className="relative">
                   <input 
-                    value={backgroundMode} 
+                    checked={backgroundMode} 
                     type="checkbox" 
                     className="sr-only peer" 
-                    onChange={(e) => setBackgroundMode(e.target.checked)}/>
+                    onChange={(e) => setBackgroundMode(e.target.checked)}
+                  />
                   <div className="w-11 h-6 bg-gray-300 rounded-full peer-checked:bg-black transition-all duration-300"></div>
                   <div className="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-md transform peer-checked:translate-x-full transition-transform duration-300"></div>
                 </span>
@@ -1635,15 +1690,16 @@ const generateOpenAIResponsesAPIBody = () => {
             size="lg"
             onClick={saveConnectorConfigToFile}
           >
-            Save
+            Export Config
           </Button>
           <Button
             className="w-[30%]"
             variant="outline"
             size="lg"
+            disabled={isLoading}
             onClick={async () => {
               toast("Running connector...");
-
+              setIsLoading(true);
               try {
                 const response = await fetch("/api/openai_api_call", {
                   method: "POST",
@@ -1677,10 +1733,12 @@ const generateOpenAIResponsesAPIBody = () => {
               } catch (err) {
                 console.error("Unexpected fetch error:", err);
                 toast.error("Unexpected error occurred.");
-              }
-            }}
+                } finally {
+                  setIsLoading(false);
+                }
+              }}
           >
-            Run
+            {isLoading ? "Running..." : "Run"}
           </Button>
           {provider === "OpenAI" && (
           <TooltipProvider delayDuration={100}>
@@ -1734,7 +1792,7 @@ const generateOpenAIResponsesAPIBody = () => {
                     customStyle={{ fontSize: 14 }}
                   >
                     {llmResponse
-                      ? JSON.stringify(JSON.parse(llmResponse), null, 2)
+                      ? JSON.stringify(typeof llmResponse === "string" ? JSON.parse(llmResponse) : llmResponse,null,2)
                       : JSON.stringify(generatedPayload, null, 2)}
                   </SyntaxHighlighter>
                 </div>
