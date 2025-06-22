@@ -187,7 +187,7 @@ export default function AiApiCallForm() {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [generatedPayload, setGeneratedPayload] = useState(null);
-  
+  const [llmResponse, setLlmResponse] = useState(null);
 
   const addFileInput = () => setFileInputs([...fileInputs, ""]);
 
@@ -1662,7 +1662,44 @@ const generateOpenAIResponsesAPIBody = () => {
             className="w-[30%]"
             variant="outline"
             size="lg"
-            onClick={() => toast("Running connector...")}
+            onClick={async () => {
+              toast("Running connector...");
+
+              try {
+                const response = await fetch("/api/openai_api_call", {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json"
+                  },
+                  body: JSON.stringify(generateOpenAIResponsesAPIBody())
+                });
+
+                const raw = await response.text(); // get raw response in case it's not JSON
+                console.log("Raw response:", raw);
+
+                let data;
+                try {
+                  data = raw ? JSON.parse(raw) : null;
+                } catch (parseError) {
+                  console.error("Failed to parse JSON:", parseError);
+                  toast.error("Invalid JSON received from API.");
+                  return;
+                }
+
+                if (response.ok) {
+                  const message = data?.choices?.[0]?.message?.content || raw;
+                  setLlmResponse(message);
+                  setIsModalOpen(true);
+                  toast.success("Connector ran successfully!");
+                } else {
+                  console.error("LLM error response:", data);
+                  toast.error(data?.error || "LLM call failed.");
+                }
+              } catch (err) {
+                console.error("Unexpected fetch error:", err);
+                toast.error("Unexpected error occurred.");
+              }
+            }}
           >
             Run
           </Button>
@@ -1695,22 +1732,31 @@ const generateOpenAIResponsesAPIBody = () => {
           {isModalOpen && (
             <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
               <div className="bg-white rounded-lg shadow-lg max-w-3xl w-full h-[80vh] overflow-hidden relative flex flex-col">
-                
-                {/* Sticky Header */}
+
                 <div className="sticky top-0 bg-white z-10 flex justify-between items-center px-4 py-3 border-b">
-                  <h2 className="text-lg font-semibold">Generated OpenAI Responses API Body</h2>
+                  <h2 className="text-lg font-semibold">
+                    {llmResponse ? "LLM Response" : "Generated OpenAI Responses API Body"}
+                  </h2>
                   <button
-                    onClick={() => setIsModalOpen(false)}
+                    onClick={() => {
+                      setIsModalOpen(false);
+                      setLlmResponse(null);
+                    }}
                     className="text-gray-500 hover:text-black"
                   >
                     ✕
                   </button>
                 </div>
 
-                {/* Scrollable Content */}
                 <div className="overflow-auto px-4 py-4">
-                  <SyntaxHighlighter language="json" style={atomOneLight} customStyle={{ fontSize: 14 }}>
-                    {JSON.stringify(generatedPayload, null, 2)}
+                  <SyntaxHighlighter
+                    language="json"
+                    style={atomOneLight}
+                    customStyle={{ fontSize: 14 }}
+                  >
+                    {llmResponse
+                      ? llmResponse
+                      : JSON.stringify(generatedPayload, null, 2)}
                   </SyntaxHighlighter>
                 </div>
               </div>
