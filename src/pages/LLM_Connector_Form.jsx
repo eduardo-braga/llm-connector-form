@@ -560,7 +560,7 @@ const generateOpenAIResponsesAPIBody = () => {
       model: selectedModel,
       temperature,
       top_p,
-      max_tokens: parseInt(maxTokens, 10),
+      //max_tokens: parseInt(maxTokens, 10),
       background: backgroundMode || undefined,
       input,
       file_ids: validFileIds.length > 0 ? validFileIds : undefined,
