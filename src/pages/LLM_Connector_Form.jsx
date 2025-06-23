@@ -17,6 +17,11 @@ import { Tooltip, TooltipTrigger, TooltipContent,TooltipProvider} from "@/compon
 import SyntaxHighlighter from "react-syntax-highlighter";
 import { atomOneLight } from "react-syntax-highlighter/dist/esm/styles/hljs";
 
+/*---------END OF IMPORTS-----------------------------------------------------------------------------------*/
+
+
+/*---------PROVIDER CONSTANTS-------------------------------------------------------------------------------*/
+
 const providerLabels = {
   OpenAI: "OpenAI ChatGPT",
   Anthropic: "Anthropic Claude",
@@ -40,6 +45,16 @@ const providerModels = {
   DeepSeek: ["deepseek-coder","deepseek-coder-instruct","deepseek-chat"],
   Custom: [""]
 };
+
+const providerAPIs = {
+  OpenAI: ["Responses API"],
+  Anthropic: [""],
+  Google: [""],
+  DeepSeek: [""],
+  Custom: [""]
+};
+
+/*------END OF PROVIDER CONSTANTS-------------------------------------------------------------------------------*/
 
 const modelsWithMaxTokens = {
   OpenAI: true,
@@ -157,7 +172,9 @@ export default function AiApiCallForm() {
   const [account, setAccount] = useState("");
   const [account2, setAccount2] = useState("");
   const [models, setModels] = useState(providerModels["OpenAI"]);
+  const [apiList, setApiList] = useState(providerAPIs["OpenAI"]);
   const [selectedModel, setSelectedModel] = useState(providerModels["OpenAI"][0]);
+  const [api, setApi] = useState(providerAPIs["OpenAI"][0]);
   const [temperature, setTemperature] = useState(0.1);
   const [top_p, setTop_p] = useState(0.9);
   const [top_k, setTop_k] = useState(50);
@@ -173,7 +190,6 @@ export default function AiApiCallForm() {
   const [toolChoice, setToolChoice] = useState("auto");
   const [tools, setTools] = useState([]);
 
-  
   const [outputExample, setOutputExample] = useState("{\n  \"name\": \"John Doe\",\n  \"age\": 40,\n  \"active\": true,\n  \"hobbies\": [\"reading\",  \"gaming\",  \"music\" ]\n}");
   const [jsonSchema, setJsonSchema] = useState(`{\n  \"type\": \"object\",\n  \"properties\": {\n    \"answer\": { \"type\": \"string\" }\n  }\n}`);
   const [outputValidation, setOutputValidation] = useState("");
@@ -543,9 +559,10 @@ const generateOpenAIResponsesAPIBody = () => {
     if (safe_search !== undefined) details.push(`Safe Search is ${safe_search ? "enabled" : "disabled"}.`);
     if (rerank_results !== undefined) details.push(`Re-rank results using AI: ${rerank_results ? "yes" : "no"}.`);
 
-    return details.length
-      ? `\n\nWeb Search Instructions:\n${details.map(d => `- ${d}`).join("\n")}`
-      : "";
+    return "";
+    //return details.length
+    //  ? `\n\nWeb Search Instructions:\n${details.map(d => `- ${d}`).join("\n")}`
+    //  : "";
   };
 
   const fullUserPrompt = `${userPrompt.trim()}${webContextFromFields()}`;
@@ -671,6 +688,8 @@ const generateOpenAIResponsesAPIBody = () => {
       <CardContent>
         <h1 className="text-lg font-medium mb-2">LLM Connector</h1>
         <Input placeholder="Step Name" className="mb-4" />
+        
+        {/* Connector Configuration */}
         <Tabs defaultValue="provider">
           <TabsList className="grid w-full grid-cols-6 mb-2">
             <TabsTrigger value="provider" className="text-xs">Model & Input</TabsTrigger>
@@ -681,9 +700,12 @@ const generateOpenAIResponsesAPIBody = () => {
              <TabsTrigger value="advanced" className="text-xs">Advanced</TabsTrigger>
           </TabsList>
 
+          {/* Model & Input Tab */}
           <TabsContent value="provider">
             <div className="space-y-4">
               <div className="flex gap-4">
+                
+                {/* Show List of Available Providers */}
                 <div className="w-1/2">
                   <label className="block text-sm font-medium text-muted-foreground">Provider</label>
                   <Select value={provider} onValueChange={setProvider}>
@@ -702,6 +724,8 @@ const generateOpenAIResponsesAPIBody = () => {
                     </SelectContent>
                   </Select>
                 </div>
+                
+                {/* Show List of Accounts to be used for the Provider Authentication */}
                 <div className="w-1/2">
                   <label className="block text-sm font-medium text-muted-foreground">Account</label>
                   <Select value={account} onValueChange={setAccount}>
@@ -715,6 +739,8 @@ const generateOpenAIResponsesAPIBody = () => {
                   </Select>
                 </div>
               </div>
+              
+              {/* Custom Provider URL */}
               <div className="mb-4 mt-4">
               {provider === "Custom" && (
                   <div>
@@ -728,7 +754,10 @@ const generateOpenAIResponsesAPIBody = () => {
                   </div>
                 )}
               </div>
+              
+
               <div className="flex gap-4">
+                {/* Show List of Available Models */}
                 <div className="w-1/2">
                   <label className="block text-sm font-medium text-muted-foreground">Model</label>
                   {provider === "Custom" ? (
@@ -753,18 +782,37 @@ const generateOpenAIResponsesAPIBody = () => {
                       </Select>
                     )}
                 </div>
-                <div className="w-1/2"/>
+
+                {/* Show List of Available APIs (On;y for OpenAI) */}
+                {provider === "OpenAI" && (
+                <div className="w-1/2">
+                  <label className="block text-sm font-medium text-muted-foreground">API</label>
+                      <Select value={api} onValueChange={setApi}>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select an API" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {apiList.map((api) => (
+                            <SelectItem key={api} value={api}>
+                              {api}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>          
+                </div>
+                )}
               </div>
               
               {/* Model & Input SubTabs */}
               <Tabs defaultValue="user">
-                <TabsList className="w-full mb-2 grid grid-cols-3">
+                <TabsList className="w-full mb-2 grid grid-cols-4">
                   <TabsTrigger value="user">User Prompt</TabsTrigger>
                   <TabsTrigger value="system">System Prompt</TabsTrigger>
                   <TabsTrigger value="files">Files Input</TabsTrigger>
+                  <TabsTrigger value="params">Parameters</TabsTrigger>
                 </TabsList>
                 
-                {/* User Prompt Tab */}
+                {/* User Prompt SubTab */}
                 <TabsContent value="user">  
                   <div className="relative">
                     {/* Top Row: Label + Button */}
@@ -846,14 +894,15 @@ const generateOpenAIResponsesAPIBody = () => {
                 </TabsContent>
 
 
-                {/* System Prompt Tab */}
+                {/* System Prompt SubTab */}
                 <TabsContent value="system">
                   <Textarea value={systemPrompt} 
                     rows={8} 
                     onChange={(e) => setSystemPrompt(e.target.value)}
                     placeholder="Define the AI's behavior, tone, personality, and boundaries here." />
                 </TabsContent>
-                
+
+                {/* File Input SubTab */}
                 <TabsContent value="files">
                   <p className="text-xs text-gray-500 italic mb-2">
                           Use double braces <code className="font-mono text-gray-400">{'{{}}'}</code> to reference the files
@@ -872,8 +921,190 @@ const generateOpenAIResponsesAPIBody = () => {
                     <Plus size={16} /> Add File
                   </Button>
                 </TabsContent>
+
+                {/* Model Parameters SubTab*/}
+                <TabsContent value="params">
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                    
+                    {/* Temperature */}
+                    <div>
+                      <div className="flex items-center gap-1 text-sm font-medium text-muted-foreground mb-1">
+                        Model Temperature
+                        <TooltipProvider delayDuration={100}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <HelpCircle size={14} className="cursor-pointer text-muted-foreground" />
+                            </TooltipTrigger>
+                            <TooltipContent side="right">
+                              Controls randomness: lower = more deterministic, higher = more creative.
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
+                      <Input
+                        type="number"
+                        className="!w-32"
+                        min="0"
+                        max="2"
+                        step="0.1"
+                        value={parseFloat(temperature || 0).toFixed(1)}
+                        onChange={(e) => setTemperature(parseFloat(e.target.value))}
+                      />
+                    </div>
+
+                    {/* Top P */}
+                    <div>
+                      <div className="flex items-center gap-1 text-sm font-medium text-muted-foreground mb-1">
+                        Model top_p
+                        <TooltipProvider delayDuration={100}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <HelpCircle size={14} className="cursor-pointer text-muted-foreground" />
+                            </TooltipTrigger>
+                            <TooltipContent side="right">
+                              top_p (also called "nucleus sampling probability") specifies the cumulative<br />
+                              probability threshold for selecting the next token from the model's probability distribution.<br /><br />
+                              Common values:<br />
+                              top_p = 1.0: Equivalent to no filtering (all tokens are considered).<br />
+                              top_p = 0.9: Typical default for balanced creativity and coherence.<br />
+                              Lower values (e.g., 0.5): More conservative and deterministic outputs.
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
+                      <Input
+                        type="number"
+                        className="!w-32"
+                        min="0"
+                        max="1"
+                        step="0.1"
+                        value={parseFloat(top_p || 0).toFixed(1)}
+                        onChange={(e) => setTop_p(parseFloat(e.target.value))}
+                      />
+                    </div>
+
+                    {/* Top K */}
+                    {provider !== "OpenAI" && (
+                      <div>
+                        <div className="flex items-center gap-1 text-sm font-medium text-muted-foreground mb-1">
+                          Model top_k
+                          <TooltipProvider delayDuration={100}>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <HelpCircle size={14} className="cursor-pointer text-muted-foreground" />
+                              </TooltipTrigger>
+                              <TooltipContent side="right">
+                                top_k specifies the number of most likely tokens the model can choose from when generating the next token.<br /><br />
+                                Common values:<br />
+                                top_k = 0: No filtering.<br />
+                                top_k = 50: Balanced creativity.<br />
+                                Lower = deterministic, Higher = more random.
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </div>
+                        <Input
+                          type="number"
+                          min="1"
+                          className="!w-32"
+                          value={top_k}
+                          onChange={(e) => setTop_k(e.target.value)}
+                        />
+                      </div>
+                    )}
+
+                    {/* Max Tokens */}
+                    {modelsWithMaxTokens[provider] && (
+                      <div>
+                        <div className="flex items-center gap-1 text-sm font-medium text-muted-foreground mb-1">
+                          Max Tokens
+                          <TooltipProvider delayDuration={100}>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <HelpCircle size={14} className="cursor-pointer text-muted-foreground" />
+                              </TooltipTrigger>
+                              <TooltipContent side="right">
+                                Maximum number of tokens the model can generate in the response. Max=32768 
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </div>
+                        <Input
+                          type="number"
+                          min="1"
+                          max="32768"
+                          className="!w-32"
+                          placeholder="Ex: 2048"
+                          value={maxTokens}
+                          onChange={(e) => setMaxTokens(e.target.value)}
+                        />
+                      </div>
+                    )}
+
+                    {/* Background Mode */}
+                    <div>
+                      <div className="flex items-center gap-1 text-sm font-medium text-muted-foreground mb-1">
+                        Background Mode
+                        <TooltipProvider delayDuration={100}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <HelpCircle size={14} className="cursor-pointer text-muted-foreground" />
+                            </TooltipTrigger>
+                            <TooltipContent side="right">
+                              Allows the model to respond asynchronously without blocking your workflow.
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
+                      <label className="inline-flex items-center cursor-pointer">
+                        <span className="relative">
+                          <input 
+                            checked={backgroundMode} 
+                            type="checkbox" 
+                            className="sr-only peer" 
+                            onChange={(e) => setBackgroundMode(e.target.checked)}
+                          />
+                          <div className="w-11 h-6 bg-gray-300 rounded-full peer-checked:bg-black transition-all duration-300"></div>
+                          <div className="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-md transform peer-checked:translate-x-full transition-transform duration-300"></div>
+                        </span>
+                      </label>
+                    </div>
+
+                    {/* Store Logs */}
+                    <div>
+                      <div className="flex items-center gap-1 text-sm font-medium text-muted-foreground mb-1">
+                        Store Logs
+                        <TooltipProvider delayDuration={100}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <HelpCircle size={14} className="cursor-pointer text-muted-foreground" />
+                            </TooltipTrigger>
+                            <TooltipContent side="right">
+                              If enabled, the LLM provider will retain logs of your request and response for observability.
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
+                      <label className="inline-flex items-center cursor-pointer">
+                        <span className="relative">
+                          <input 
+                            checked={storeLogsProvider} 
+                            onChange={(e) => setStoreLogsProvider(e.target.checked)}
+                            type="checkbox" 
+                            className="sr-only peer" />
+                          <div className="w-11 h-6 bg-gray-300 rounded-full peer-checked:bg-black transition-all duration-300"></div>
+                          <div className="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-md transform peer-checked:translate-x-full transition-transform duration-300"></div>
+                        </span>
+                      </label>
+                    </div>
+
+                  </div>
+                </TabsContent>
+
+
               </Tabs>
             </div>
+
           </TabsContent>
 
           <TabsContent value="web">
@@ -1495,21 +1726,6 @@ const generateOpenAIResponsesAPIBody = () => {
           <div className="space-y-4">
             
             <div className="flex items-center gap-4">
-              <label className="block text-sm font-medium text-muted-foreground">Store Logs on Provider</label>
-              <label className="inline-flex items-center cursor-pointer">
-                <span className="relative">
-                  <input 
-                    checked={storeLogsProvider} 
-                    onChange={(e) => setStoreLogsProvider(e.target.checked)}
-                    type="checkbox" 
-                    className="sr-only peer" />
-                  <div className="w-11 h-6 bg-gray-300 rounded-full peer-checked:bg-black transition-all duration-300"></div>
-                  <div className="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-md transform peer-checked:translate-x-full transition-transform duration-300"></div>
-                </span>
-              </label>
-            </div>
-
-            <div className="flex items-center gap-4">
               <label className="block text-sm font-medium text-muted-foreground">Log Costs</label>
               <label className="inline-flex items-center cursor-pointer">
                 <span className="relative">
@@ -1530,142 +1746,12 @@ const generateOpenAIResponsesAPIBody = () => {
                 </span>
               </label>
             </div>
-
-            <div className="flex items-center gap-4">
-              <label className="block text-sm font-medium text-muted-foreground">Enable Background Mode</label>
-              <label className="inline-flex items-center cursor-pointer">
-                <span className="relative">
-                  <input 
-                    checked={backgroundMode} 
-                    type="checkbox" 
-                    className="sr-only peer" 
-                    onChange={(e) => setBackgroundMode(e.target.checked)}
-                  />
-                  <div className="w-11 h-6 bg-gray-300 rounded-full peer-checked:bg-black transition-all duration-300"></div>
-                  <div className="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-md transform peer-checked:translate-x-full transition-transform duration-300"></div>
-                </span>
-              </label>
-            </div>
-
-            <div>
-              <div className="flex items-center gap-1 text-sm font-medium text-muted-foreground mb-1">
-                Model Temperature
-                <TooltipProvider delayDuration={100}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <HelpCircle size={14} className="cursor-pointer text-muted-foreground" />
-                    </TooltipTrigger>
-                    <TooltipContent side="right">
-                      Controls randomness: lower = more deterministic, higher = more creative.
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
-              <Input
-                type="number"
-                className="!w-32"
-                min="0"
-                max="1"
-                step="0.1"
-                value={parseFloat(temperature || 0).toFixed(1)}
-                onChange={(e) => setTemperature(parseFloat(e.target.value))}
-              />
-            </div>
-
-            {modelsWithMaxTokens[provider] && (
-              <div>
-                <div className="flex items-center gap-1 text-sm font-medium text-muted-foreground mb-1">
-                  Max Tokens
-                  <TooltipProvider delayDuration={100}>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <HelpCircle size={14} className="cursor-pointer text-muted-foreground" />
-                      </TooltipTrigger>
-                      <TooltipContent side="right">
-                        Maximum number of tokens the model can generate in the response.
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </div>
-                <Input
-                  type="number"
-                  min="1"
-                  className="!w-32"
-                  placeholder="Ex: 2048"
-                  value={maxTokens}
-                  onChange={(e) => setMaxTokens(e.target.value)}
-                />
-              </div>
-            )}
-
-            <div>
-              <div className="flex items-center gap-1 text-sm font-medium text-muted-foreground mb-1">
-                Model top_p
-                <TooltipProvider delayDuration={100}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <HelpCircle size={14} className="cursor-pointer text-muted-foreground" />
-                    </TooltipTrigger>
-                    <TooltipContent side="right">
-                      top_p (also called "nucleus sampling probability") specifies the cumulative<br />
-                      probability threshold for selecting the next token from the model's probability distribution.<br />
-                      <br />
-                      Common values:<br />
-                      top_p = 1.0: Equivalent to no filtering (all tokens are considered).<br />
-                      top_p = 0.9: Typical default for balanced creativity and coherence.<br />
-                      Lower values (e.g., 0.5): More conservative and deterministic outputs.<br />
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
-              <Input
-                type="number"
-                className="!w-32"
-                min="0"
-                max="1"
-                step="0.1"
-                value={parseFloat(top_p || 0).toFixed(1)}
-                onChange={(e) => setTop_p(parseFloat(e.target.value))}
-              />
-            </div>
-
-            {provider != "OpenAI" && (
-            <div>
-              <div className="flex items-center gap-1 text-sm font-medium text-muted-foreground mb-1">
-                Model top_k
-                <TooltipProvider delayDuration={100}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <HelpCircle size={14} className="cursor-pointer text-muted-foreground" />
-                    </TooltipTrigger>
-                    <TooltipContent side="right">
-                      top_k specifies the number of most likely tokens the model can choose from when generating the next token.<br />
-                      This limits the sampling pool to the top k highest-probability candidates, filtering out the rest.<br />
-                      <br />
-                      Common values:<br />
-                      top_k = 0: Equivalent to no filtering (all tokens are considered).<br />
-                      top_k = 50: Typical default for creative but coherent outputs.<br />
-                      Lower values (e.g., 5 or 10): More focused and deterministic outputs.<br />
-                      Higher values (e.g., 100 or more): Increases randomness and diversity.<br />
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
-              <Input
-                type="number"
-                  min="1"
-                  className="!w-32"
-                  value={top_k}
-                  onChange={(e) => setTop_k(e.target.value)}
-              />
-            </div>
-            )}
+            
           </div>
           </TabsContent>
         </Tabs>
         <div className="flex gap-4 mt-6">
           
-
           <Button
             className="w-[20%]"
             variant="outline"
@@ -1683,7 +1769,6 @@ const generateOpenAIResponsesAPIBody = () => {
             onChange={importConnectorConfigFromFile}
           />
 
-
           <Button
             className="w-[50%]"
             variant="black"
@@ -1692,6 +1777,8 @@ const generateOpenAIResponsesAPIBody = () => {
           >
             Export Config
           </Button>
+          
+          {provider === "OpenAI" && (
           <Button
             className="w-[30%]"
             variant="outline"
@@ -1740,6 +1827,9 @@ const generateOpenAIResponsesAPIBody = () => {
           >
             {isLoading ? "Running..." : "Run"}
           </Button>
+          )}
+          
+          {/* Payload Preview */}
           {provider === "OpenAI" && (
           <TooltipProvider delayDuration={100}>
             <Tooltip>
@@ -1760,16 +1850,18 @@ const generateOpenAIResponsesAPIBody = () => {
                 </button>
               </TooltipTrigger>
               <TooltipContent>
-                Generate OpenAI Responses API Call
+                API Call Payload Preview
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
           )}
 
+          {/* Modal */}
           {isModalOpen && (
             <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
               <div className="bg-white rounded-lg shadow-lg max-w-3xl w-full h-[80vh] overflow-hidden relative flex flex-col">
 
+                {/* Modal Header */}
                 <div className="sticky top-0 bg-white z-10 flex justify-between items-center px-4 py-3 border-b">
                   <h2 className="text-lg font-semibold">
                     {llmResponse ? "LLM Response" : "Generated OpenAI Responses API Body"}
@@ -1785,18 +1877,119 @@ const generateOpenAIResponsesAPIBody = () => {
                   </button>
                 </div>
 
-                <div className="overflow-auto px-4 py-4">
-                  <SyntaxHighlighter
-                    language="json"
-                    style={atomOneLight}
-                    customStyle={{ fontSize: 14 }}
-                  >
-                    {llmResponse
-                      ? JSON.stringify(typeof llmResponse === "string" ? JSON.parse(llmResponse) : llmResponse,null,2)
-                      : JSON.stringify(generatedPayload, null, 2)}
-                  </SyntaxHighlighter>
-                </div>
+                {/* Tabs */}
+                <Tabs defaultValue="full" className="flex flex-col flex-1 overflow-hidden">
+                  {/* Tab Headers */}
+                  <TabsList className="border-b px-4 pt-2">
+                    <TabsTrigger value="full">Full Response</TabsTrigger>
+                    <TabsTrigger value="text">Output Message</TabsTrigger>
+                  </TabsList>
+
+                  {/* Scrollable tab content container */}
+                  <div className="flex-1 overflow-auto px-4 py-4">
+                    
+                    {/* Full Response */}
+                    <TabsContent value="full">
+                      <div className="relative">
+                        <div className="absolute top-0 right-0 m-2">
+                          <TooltipProvider delayDuration={100}>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button
+                                  onClick={() => {
+                                    const data = llmResponse
+                                      ? JSON.stringify(typeof llmResponse === "string" ? JSON.parse(llmResponse) : llmResponse, null, 2)
+                                      : JSON.stringify(generatedPayload, null, 2);
+                                    navigator.clipboard.writeText(data);
+                                    toast.success("Copied!")
+                                  }}
+                                  className="text-sm text-gray-500 hover:text-black"
+                                  title="Copy to clipboard"
+                                >
+                                  📋
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent>Copy to clipboard</TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </div>
+
+                        <SyntaxHighlighter
+                          language="json"
+                          style={atomOneLight}
+                          customStyle={{ fontSize: 14 }}
+                        >
+                          {llmResponse
+                            ? JSON.stringify(typeof llmResponse === "string" ? JSON.parse(llmResponse) : llmResponse, null, 2)
+                            : JSON.stringify(generatedPayload, null, 2)}
+                        </SyntaxHighlighter>
+                      </div>
+                    </TabsContent>
+
+                     {/* Output Message */}
+                    <TabsContent value="text">
+                      <div className="relative">
+                        <div className="absolute top-0 right-0 m-2">
+                          <TooltipProvider delayDuration={100}>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button
+                                  onClick={() => {
+                                    try {
+                                      const parsed = typeof llmResponse === "string" ? JSON.parse(llmResponse) : llmResponse;
+                                      const messageBlock = parsed.output?.find(entry => entry.type === "message");
+                                      const outputText = messageBlock?.content?.find(c => c.type === "output_text")?.text;
+                                      if (!outputText) throw new Error("No structured output found.");
+                                      navigator.clipboard.writeText(
+                                        JSON.stringify(JSON.parse(outputText), null, 2)
+                                      );
+                                      toast.success("Copied!")
+                                    } catch (err) {
+                                      toast.error("Failed to copy structured output.");
+                                    }
+                                  }}
+                                  className="text-sm text-gray-500 hover:text-black"
+                                  title="Copy to clipboard"
+                                >
+                                  📋
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent>Copy to clipboard</TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </div>
+
+                        <SyntaxHighlighter
+                          language="json"
+                          style={atomOneLight}
+                          customStyle={{ fontSize: 14 }}
+                        >
+                          {(() => {
+                            try {
+                              const parsed = typeof llmResponse === "string" ? JSON.parse(llmResponse) : llmResponse;
+                              const messageBlock = parsed.output?.find(entry => entry.type === "message");
+                              const outputText = messageBlock?.content?.find(c => c.type === "output_text")?.text;
+                              if (!outputText) return "No structured output found in response.";
+                              return JSON.stringify(JSON.parse(outputText), null, 2);
+                            } catch (err) {
+                              return `Error parsing structured output:\n${err.message}`;
+                            }
+                          })()}
+                        </SyntaxHighlighter>
+                      </div>
+                    </TabsContent>
+
+
+                  </div>
+                </Tabs>
+
               </div>
+            </div>
+          )}
+
+          {isLoading && (
+            <div className="fixed inset-0 bg-black bg-opacity-60 z-[9999] flex items-center justify-center">
+              <div className="text-white text-xl font-semibold">Executing...</div>
             </div>
           )}
 
