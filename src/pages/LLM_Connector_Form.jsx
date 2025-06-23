@@ -167,6 +167,8 @@ const getDescription = (value) => {
 
 export default function AiApiCallForm() {
   
+  const [stepName, setStepName] = useState("");
+
   const [provider, setProvider] = useState("OpenAI");
   const [providerUrl, setProviderUrl] = useState("");
   const [account, setAccount] = useState("");
@@ -375,6 +377,7 @@ useEffect(() => {
 const saveConnectorConfigToFile = () => {
   try {
     const config = {
+      stepName,
       provider,
       providerUrl,
       account,
@@ -456,6 +459,7 @@ const importConnectorConfigFromFile = (event) => {
     try {
       const config = JSON.parse(e.target.result);
 
+      setStepName(config.stepName);
       setProvider(config.provider);
       setProviderUrl(config.providerUrl);
       setAccount(config.account);
@@ -687,7 +691,9 @@ const generateOpenAIResponsesAPIBody = () => {
     <Card className="max-w-3xl mx-auto mt-8 shadow-2xl rounded-2xl p-4">
       <CardContent>
         <h1 className="text-lg font-medium mb-2">LLM Connector</h1>
-        <Input placeholder="Step Name" className="mb-4" />
+        <Input value={stepName} 
+          onChange={(e) => setStepName(e.target.value)}
+          placeholder="Step Name" className="mb-4" />
         
         {/* Connector Configuration */}
         <Tabs defaultValue="provider">
