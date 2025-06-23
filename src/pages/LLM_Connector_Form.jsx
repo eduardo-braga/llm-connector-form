@@ -188,9 +188,8 @@ export default function AiApiCallForm() {
   const [fileInputs, setFileInputs] = useState([""]);
   
   const [allowWebSearch, setAllowWebSearch] = useState(false);
-  const [webSearch, setWebSearch] = useState({search_engine: "google",site_restriction: "",region: "us",language: "en",num_results: 10,date_range: "",exclude_keywords: "",query_boost: "",follow_links_depth: 1,cache_ttl: 3600,safe_search: false,rerank_results: true});
-  const [country, setCountry] = useState("");
-  const [timezone, setTimezone] = useState("");
+  const [webSearch, setWebSearch] = useState({search_engine: "google",site_restriction: "",region: "",language: "",num_results: 10,date_range: "",exclude_keywords: "",query_boost: "",follow_links_depth: 1,cache_ttl: 3600,safe_search: false,rerank_results: true});
+  const [webSearchParams, setWebSearchParams] = useState({country: "US",state: "",city: "",timezone:"America/New_York",search_context_size:"medium" });
   
   const [toolChoice, setToolChoice] = useState("auto");
   const [tools, setTools] = useState([]);
@@ -384,6 +383,10 @@ const updateWebSearch = (key, value) => {
   setWebSearch((prev) => ({ ...prev, [key]: value }));
 };
 
+const updateWebSearchParams = (key, value) => {
+  setWebSearchParams((prev) => ({ ...prev, [key]: value }));
+};
+
 const saveConnectorConfigToFile = () => {
   try {
     const config = {
@@ -403,6 +406,7 @@ const saveConnectorConfigToFile = () => {
       fileInputs,
       allowWebSearch,
       webSearch,
+      webSearchParams,
       toolChoice,
       tools: tools.map((tool) => ({
         ...tool,
@@ -485,6 +489,7 @@ const importConnectorConfigFromFile = (event) => {
       setFileInputs(config.fileInputs || []);
       setAllowWebSearch(config.allowWebSearch);
       setWebSearch(config.webSearch || {});
+      setWebSearchParams(config.webSearchParams || {});
       setToolChoice(config.toolChoice);
       setTools(
         (config.tools || []).map((tool) => ({
@@ -556,8 +561,8 @@ const generateOpenAIResponsesAPIBody = () => {
 
     if (search_engine) details.push(`Use "${search_engine}" as the search engine.`);
     if (site_restriction) details.push(`Limit search to "${site_restriction}".`);
-    if (region) details.push(`Focus results on the "${region}" region.`);
-    if (language) details.push(`Preferred language is "${language}".`);
+    //if (region) details.push(`Focus results on the "${region}" region.`);
+    //if (language) details.push(`Preferred language is "${language}".`);
     if (num_results) details.push(`Return up to ${num_results} results.`);
     if (date_range) details.push(`Restrict results to "${date_range}".`);
     if (result_format) details.push(`Format results as "${result_format}".`);
@@ -609,7 +614,17 @@ const generateOpenAIResponsesAPIBody = () => {
 
   // Add web_search tool correctly
   if (allowWebSearch) {
-    body.tools.push({ type: "web_search_preview"});
+    body.tools.push({ 
+      type: "web_search_preview",
+      search_context_size: webSearchParams?.search_context_size || "medium",
+      user_location: {
+        type: "approximate",
+        country: webSearchParams?.country || null,
+        region: webSearchParams?.state || null,
+        city: webSearchParams?.city || null,
+        timezone: webSearchParams?.timezone || null
+      }
+    });
   }
 
   // Structured output using `text.format`
@@ -1158,14 +1173,14 @@ const generateOpenAIResponsesAPIBody = () => {
                         <label className="block text-sm font-medium text-muted-foreground">
                           Country
                         </label>
-                        <Select value={country} onValueChange={setCountry}>
+                        <Select value={webSearchParams?.country} onValueChange={(val) => updateWebSearchParams("country", val)}>
                           <SelectTrigger>
                             <SelectValue placeholder="Select a country..." />
                           </SelectTrigger>
                           <SelectContent>
-                            {countries.map((countryName) => (
-                              <SelectItem key={countryName} value={countryName}>
-                                {countryName}
+                            {countries.map(({ name, code }) => (
+                              <SelectItem key={code} value={code}>
+                                {name}
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -1175,7 +1190,7 @@ const generateOpenAIResponsesAPIBody = () => {
                         <label className="block text-sm font-medium text-muted-foreground">
                           Timezone
                         </label>
-                        <Select value={timezone} onValueChange={setTimezone}>
+                        <Select value={webSearchParams?.timezone} onValueChange={(val) => updateWebSearchParams("timezone", val)}>
                           <SelectTrigger>
                             <SelectValue placeholder="Select a timezone..." />
                           </SelectTrigger>
@@ -1189,18 +1204,18 @@ const generateOpenAIResponsesAPIBody = () => {
                         </Select>
                       </div>
                       <div>
-                        <label className="text-sm font-medium">State</label>
+                         <label className="block text-sm font-medium text-muted-foreground">State</label>
                         <Input
                           placeholder="Florida"
-                          value={webSearch?.state || ""}
-                          onChange={(e) => updateWebSearch("state", e.target.value)}
+                          value={webSearchParams?.state || ""}
+                          onChange={(e) => updateWebSearchParams("state", e.target.value)}
                         />
                       </div>
                       <div>
-                        <label className="text-sm font-medium">Search context size</label>
+                         <label className="block text-sm font-medium text-muted-foreground">Search context size</label>
                         <Select
-                          value={webSearch?.search_context_size || "medium"}
-                          onValueChange={(val) => updateWebSearch("search_context_size", val)}
+                          value={webSearchParams?.search_context_size || "medium"}
+                          onValueChange={(val) => updateWebSearchParams("search_context_size", val)}
                         >
                           <SelectTrigger className="w-full">
                             <SelectValue placeholder="Medium" />
@@ -1213,11 +1228,11 @@ const generateOpenAIResponsesAPIBody = () => {
                         </Select>
                       </div>
                       <div>
-                        <label className="text-sm font-medium">City</label>
+                         <label className="block text-sm font-medium text-muted-foreground">City</label>
                         <Input
                           placeholder="Miami"
-                          value={webSearch?.city || ""}
-                          onChange={(e) => updateWebSearch("city", e.target.value)}
+                          value={webSearchParams?.city || ""}
+                          onChange={(e) => updateWebSearchParams("city", e.target.value)}
                         />
                       </div> 
                       
@@ -1229,17 +1244,17 @@ const generateOpenAIResponsesAPIBody = () => {
                   <TabsContent value="prompt">
                     <div>
                     <TooltipProvider delayDuration={100}>
-                    <div className="grid grid-cols-2 gap-4 mt-4">
+                    <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
-                          <label className="text-sm font-medium">Search Engine</label>
+                           <label className="block text-sm font-medium text-muted-foreground">Search Engine</label>
                           <Tooltip><TooltipTrigger asChild><HelpCircle className="w-3 h-3" /></TooltipTrigger><TooltipContent>Define which search engine to use</TooltipContent></Tooltip>
                         </div>
                         <Input value={webSearch.search_engine} onChange={(e) => setWebSearch(prev => ({ ...prev, search_engine: e.target.value }))} placeholder="google, bing, duckduckgo" />
                       </div>
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
-                          <label className="text-sm font-medium">Site Restriction</label>
+                           <label className="block text-sm font-medium text-muted-foreground">Site Restriction</label>
                           <Tooltip><TooltipTrigger asChild><HelpCircle className="w-3 h-3" /></TooltipTrigger><TooltipContent>Limit search to a specific site</TooltipContent></Tooltip>
                         </div>
                         <Input value={webSearch.site_restriction} onChange={(e) => setWebSearch(prev => ({ ...prev, site_restriction: e.target.value }))} placeholder="site:techcrunch.com" />
@@ -1262,53 +1277,53 @@ const generateOpenAIResponsesAPIBody = () => {
                       */}
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
-                          <label className="text-sm font-medium">Number of Results</label>
+                           <label className="block text-sm font-medium text-muted-foreground">Number of Results</label>
                           <Tooltip><TooltipTrigger asChild><HelpCircle className="w-3 h-3" /></TooltipTrigger><TooltipContent>Number of results to retrieve</TooltipContent></Tooltip>
                         </div>
                         <Input type="number" value={webSearch.num_results} onChange={(e) => setWebSearch(prev => ({ ...prev, num_results: e.target.value }))} placeholder="5" />
                       </div>
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
-                          <label className="text-sm font-medium">Date Range</label>
+                           <label className="block text-sm font-medium text-muted-foreground">Date Range</label>
                           <Tooltip><TooltipTrigger asChild><HelpCircle className="w-3 h-3" /></TooltipTrigger><TooltipContent>Limit to a time period</TooltipContent></Tooltip>
                         </div>
                         <Input value={webSearch.date_range} onChange={(e) => setWebSearch(prev => ({ ...prev, date_range: e.target.value }))} placeholder="past 24 hours" />
                       </div>
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
-                          <label className="text-sm font-medium">Exclude Keywords</label>
+                           <label className="block text-sm font-medium text-muted-foreground">Exclude Keywords</label>
                           <Tooltip><TooltipTrigger asChild><HelpCircle className="w-3 h-3" /></TooltipTrigger><TooltipContent>Filter out results with these keywords</TooltipContent></Tooltip>
                         </div>
                         <Input value={webSearch.exclude_keywords} onChange={(e) => setWebSearch(prev => ({ ...prev, exclude_keywords: e.target.value }))} placeholder="forum, reddit" />
                       </div>
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
-                          <label className="text-sm font-medium">Query Boost</label>
+                           <label className="block text-sm font-medium text-muted-foreground">Query Boost</label>
                           <Tooltip><TooltipTrigger asChild><HelpCircle className="w-3 h-3" /></TooltipTrigger><TooltipContent>Add weight to certain keywords</TooltipContent></Tooltip>
                         </div>
                         <Input value={webSearch.query_boost} onChange={(e) => setWebSearch(prev => ({ ...prev, query_boost: e.target.value }))} placeholder="official, 2025" />
                       </div>
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
-                          <label className="text-sm font-medium">Follow Links Depth</label>
+                           <label className="block text-sm font-medium text-muted-foreground">Follow Links Depth</label>
                           <Tooltip><TooltipTrigger asChild><HelpCircle className="w-3 h-3" /></TooltipTrigger><TooltipContent>Depth for link crawling</TooltipContent></Tooltip>
                         </div>
                         <Input type="number" value={webSearch.follow_links_depth} onChange={(e) => setWebSearch(prev => ({ ...prev, follow_links_depth: e.target.value }))} placeholder="1" />
                       </div>
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
-                          <label className="text-sm font-medium">Cache TTL</label>
+                           <label className="block text-sm font-medium text-muted-foreground">Cache TTL</label>
                           <Tooltip><TooltipTrigger asChild><HelpCircle className="w-3 h-3" /></TooltipTrigger><TooltipContent>Cache duration in seconds</TooltipContent></Tooltip>
                         </div>
                         <Input type="number" value={webSearch.cache_ttl} onChange={(e) => setWebSearch(prev => ({ ...prev, cache_ttl: e.target.value }))} placeholder="3600" />
                       </div>
                       <div className="flex items-center space-x-2 mt-2">
                         <Checkbox id="safe_search" checked={webSearch.safe_search} onCheckedChange={(value) => setWebSearch(prev => ({ ...prev, safe_search: value }))} />
-                        <label htmlFor="safe_search" className="text-sm">Enable Safe Search</label>
+                        <label htmlFor="safe_search" className="block text-sm font-medium text-muted-foreground">Enable Safe Search</label>
                       </div>
                       <div className="flex items-center space-x-2 mt-2">
                         <Checkbox id="rerank_results" checked={webSearch.rerank_results} onCheckedChange={(value) => setWebSearch(prev => ({ ...prev, rerank_results: value }))} />
-                        <label htmlFor="rerank_results" className="text-sm">Rerank Results</label>
+                        <label htmlFor="rerank_results" className="block text-sm font-medium text-muted-foreground">Rerank Results</label>
                       </div>
                     </div>
                   </TooltipProvider>
@@ -1395,7 +1410,10 @@ const generateOpenAIResponsesAPIBody = () => {
                               height="200px"
                               extensions={[json()]}
                               theme={quietlight}
-                              basicSetup={{ lineNumbers: true }}
+                              basicSetup={{
+                                      highlightActiveLine: false,
+                                      highlightActiveLineGutter: false
+                              }}
                               onChange={(value) => updateTool(index, "parameters", value)}
                             />
                           </div>
@@ -1906,6 +1924,8 @@ const generateOpenAIResponsesAPIBody = () => {
             onClick={async () => {
               toast("Running connector...");
               setIsLoading(true);
+              const payload = generateOpenAIResponsesAPIBody();
+              setGeneratedPayload(payload);
               try {
                 const response = await fetch("/api/openai_api_call", {
                   method: "POST",
