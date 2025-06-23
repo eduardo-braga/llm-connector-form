@@ -16,6 +16,7 @@ import { EditorView } from "@codemirror/view";
 import { Tooltip, TooltipTrigger, TooltipContent,TooltipProvider} from "@/components/ui/tooltip";
 import SyntaxHighlighter from "react-syntax-highlighter";
 import { atomOneLight } from "react-syntax-highlighter/dist/esm/styles/hljs";
+import { countries } from "@/utils/countries";
 
 /*---------END OF IMPORTS-----------------------------------------------------------------------------------*/
 
@@ -188,7 +189,9 @@ export default function AiApiCallForm() {
   
   const [allowWebSearch, setAllowWebSearch] = useState(false);
   const [webSearch, setWebSearch] = useState({search_engine: "google",site_restriction: "",region: "us",language: "en",num_results: 10,date_range: "",exclude_keywords: "",query_boost: "",follow_links_depth: 1,cache_ttl: 3600,safe_search: false,rerank_results: true});
-
+  const [country, setCountry] = useState("");
+  const [timezone, setTimezone] = useState("");
+  
   const [toolChoice, setToolChoice] = useState("auto");
   const [tools, setTools] = useState([]);
 
@@ -208,6 +211,9 @@ export default function AiApiCallForm() {
   const [generatedPayload, setGeneratedPayload] = useState(null);
   const [llmResponse, setLlmResponse] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  
+  const timezones = Intl.supportedValuesOf("timeZone");
 
   const addFileInput = () => setFileInputs([...fileInputs, ""]);
 
@@ -373,6 +379,10 @@ useEffect(() => {
     document.removeEventListener("mousedown", handleClickOutside);
   };
 }, [showPromptDropdown]);
+
+const updateWebSearch = (key, value) => {
+  setWebSearch((prev) => ({ ...prev, [key]: value }));
+};
 
 const saveConnectorConfigToFile = () => {
   try {
@@ -563,10 +573,10 @@ const generateOpenAIResponsesAPIBody = () => {
     if (safe_search !== undefined) details.push(`Safe Search is ${safe_search ? "enabled" : "disabled"}.`);
     if (rerank_results !== undefined) details.push(`Re-rank results using AI: ${rerank_results ? "yes" : "no"}.`);
 
-    return "";
-    //return details.length
-    //  ? `\n\nWeb Search Instructions:\n${details.map(d => `- ${d}`).join("\n")}`
-    //  : "";
+    //return "";
+    return details.length
+      ? `\n\nWeb Search Instructions:\n${details.map(d => `- ${d}`).join("\n")}`
+      : "";
   };
 
   const fullUserPrompt = `${userPrompt.trim()}${webContextFromFields()}`;
@@ -1113,8 +1123,9 @@ const generateOpenAIResponsesAPIBody = () => {
 
           </TabsContent>
 
+
           <TabsContent value="web">
-              {/* Prompt Web Search */}
+            <div className="space-y-4">
               <div className="flex items-center gap-4">
                 <label className="block text-sm font-medium text-muted-foreground">Use web search to get real-time information?</label>
                 <label className="inline-flex items-center cursor-pointer">
@@ -1130,91 +1141,185 @@ const generateOpenAIResponsesAPIBody = () => {
                   </span>
                 </label>
               </div>
+
               {allowWebSearch && (
-                <TooltipProvider delayDuration={100}>
-                <div className="grid grid-cols-2 gap-4 mt-4">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <label className="text-sm font-medium">Search Engine</label>
-                      <Tooltip><TooltipTrigger asChild><HelpCircle className="w-3 h-3" /></TooltipTrigger><TooltipContent>Define which search engine to use</TooltipContent></Tooltip>
+                <Tabs defaultValue="webtool" className="mt-4 w-full">
+                  <TabsList className="w-full mb-2 grid grid-cols-2">
+                    <TabsTrigger value="webtool">Web Search Params</TabsTrigger>
+                    <TabsTrigger value="prompt">Prompt Enrichment</TabsTrigger>
+                  </TabsList>
+
+                  {/* Tool Config */}
+                  <TabsContent value="webtool">
+                    <div>
+                    <div className="grid grid-cols-2 gap-4">
+                      
+                      <div className="space-y-1">
+                        <label className="block text-sm font-medium text-muted-foreground">
+                          Country
+                        </label>
+                        <Select value={country} onValueChange={setCountry}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a country..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {countries.map((countryName) => (
+                              <SelectItem key={countryName} value={countryName}>
+                                {countryName}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1">
+                        <label className="block text-sm font-medium text-muted-foreground">
+                          Timezone
+                        </label>
+                        <Select value={timezone} onValueChange={setTimezone}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a timezone..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {timezones.map((tz) => (
+                              <SelectItem key={tz} value={tz}>
+                                {tz}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium">State</label>
+                        <Input
+                          placeholder="Florida"
+                          value={webSearch?.state || ""}
+                          onChange={(e) => updateWebSearch("state", e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium">Search context size</label>
+                        <Select
+                          value={webSearch?.search_context_size || "medium"}
+                          onValueChange={(val) => updateWebSearch("search_context_size", val)}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Medium" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="low">Low</SelectItem>
+                            <SelectItem value="medium">Medium</SelectItem>
+                            <SelectItem value="high">High</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium">City</label>
+                        <Input
+                          placeholder="Miami"
+                          value={webSearch?.city || ""}
+                          onChange={(e) => updateWebSearch("city", e.target.value)}
+                        />
+                      </div> 
+                      
                     </div>
-                    <Input value={webSearch.search_engine} onChange={(e) => setWebSearch(prev => ({ ...prev, search_engine: e.target.value }))} placeholder="google, bing, duckduckgo" />
                   </div>
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <label className="text-sm font-medium">Site Restriction</label>
-                      <Tooltip><TooltipTrigger asChild><HelpCircle className="w-3 h-3" /></TooltipTrigger><TooltipContent>Limit search to a specific site</TooltipContent></Tooltip>
+                  </TabsContent>
+
+                  {/* Prompt Enrichment */}
+                  <TabsContent value="prompt">
+                    <div>
+                    <TooltipProvider delayDuration={100}>
+                    <div className="grid grid-cols-2 gap-4 mt-4">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <label className="text-sm font-medium">Search Engine</label>
+                          <Tooltip><TooltipTrigger asChild><HelpCircle className="w-3 h-3" /></TooltipTrigger><TooltipContent>Define which search engine to use</TooltipContent></Tooltip>
+                        </div>
+                        <Input value={webSearch.search_engine} onChange={(e) => setWebSearch(prev => ({ ...prev, search_engine: e.target.value }))} placeholder="google, bing, duckduckgo" />
+                      </div>
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <label className="text-sm font-medium">Site Restriction</label>
+                          <Tooltip><TooltipTrigger asChild><HelpCircle className="w-3 h-3" /></TooltipTrigger><TooltipContent>Limit search to a specific site</TooltipContent></Tooltip>
+                        </div>
+                        <Input value={webSearch.site_restriction} onChange={(e) => setWebSearch(prev => ({ ...prev, site_restriction: e.target.value }))} placeholder="site:techcrunch.com" />
+                      </div>
+                      {/*}
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <label className="text-sm font-medium">Region</label>
+                          <Tooltip><TooltipTrigger asChild><HelpCircle className="w-3 h-3" /></TooltipTrigger><TooltipContent>Localize search results</TooltipContent></Tooltip>
+                        </div>
+                        <Input value={webSearch.region} onChange={(e) => setWebSearch(prev => ({ ...prev, region: e.target.value }))} placeholder="us, br" />
+                      </div>
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <label className="text-sm font-medium">Language</label>
+                          <Tooltip><TooltipTrigger asChild><HelpCircle className="w-3 h-3" /></TooltipTrigger><TooltipContent>Set preferred result language</TooltipContent></Tooltip>
+                        </div>
+                        <Input value={webSearch.language} onChange={(e) => setWebSearch(prev => ({ ...prev, language: e.target.value }))} placeholder="en, pt-BR" />
+                      </div>
+                      */}
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <label className="text-sm font-medium">Number of Results</label>
+                          <Tooltip><TooltipTrigger asChild><HelpCircle className="w-3 h-3" /></TooltipTrigger><TooltipContent>Number of results to retrieve</TooltipContent></Tooltip>
+                        </div>
+                        <Input type="number" value={webSearch.num_results} onChange={(e) => setWebSearch(prev => ({ ...prev, num_results: e.target.value }))} placeholder="5" />
+                      </div>
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <label className="text-sm font-medium">Date Range</label>
+                          <Tooltip><TooltipTrigger asChild><HelpCircle className="w-3 h-3" /></TooltipTrigger><TooltipContent>Limit to a time period</TooltipContent></Tooltip>
+                        </div>
+                        <Input value={webSearch.date_range} onChange={(e) => setWebSearch(prev => ({ ...prev, date_range: e.target.value }))} placeholder="past 24 hours" />
+                      </div>
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <label className="text-sm font-medium">Exclude Keywords</label>
+                          <Tooltip><TooltipTrigger asChild><HelpCircle className="w-3 h-3" /></TooltipTrigger><TooltipContent>Filter out results with these keywords</TooltipContent></Tooltip>
+                        </div>
+                        <Input value={webSearch.exclude_keywords} onChange={(e) => setWebSearch(prev => ({ ...prev, exclude_keywords: e.target.value }))} placeholder="forum, reddit" />
+                      </div>
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <label className="text-sm font-medium">Query Boost</label>
+                          <Tooltip><TooltipTrigger asChild><HelpCircle className="w-3 h-3" /></TooltipTrigger><TooltipContent>Add weight to certain keywords</TooltipContent></Tooltip>
+                        </div>
+                        <Input value={webSearch.query_boost} onChange={(e) => setWebSearch(prev => ({ ...prev, query_boost: e.target.value }))} placeholder="official, 2025" />
+                      </div>
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <label className="text-sm font-medium">Follow Links Depth</label>
+                          <Tooltip><TooltipTrigger asChild><HelpCircle className="w-3 h-3" /></TooltipTrigger><TooltipContent>Depth for link crawling</TooltipContent></Tooltip>
+                        </div>
+                        <Input type="number" value={webSearch.follow_links_depth} onChange={(e) => setWebSearch(prev => ({ ...prev, follow_links_depth: e.target.value }))} placeholder="1" />
+                      </div>
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <label className="text-sm font-medium">Cache TTL</label>
+                          <Tooltip><TooltipTrigger asChild><HelpCircle className="w-3 h-3" /></TooltipTrigger><TooltipContent>Cache duration in seconds</TooltipContent></Tooltip>
+                        </div>
+                        <Input type="number" value={webSearch.cache_ttl} onChange={(e) => setWebSearch(prev => ({ ...prev, cache_ttl: e.target.value }))} placeholder="3600" />
+                      </div>
+                      <div className="flex items-center space-x-2 mt-2">
+                        <Checkbox id="safe_search" checked={webSearch.safe_search} onCheckedChange={(value) => setWebSearch(prev => ({ ...prev, safe_search: value }))} />
+                        <label htmlFor="safe_search" className="text-sm">Enable Safe Search</label>
+                      </div>
+                      <div className="flex items-center space-x-2 mt-2">
+                        <Checkbox id="rerank_results" checked={webSearch.rerank_results} onCheckedChange={(value) => setWebSearch(prev => ({ ...prev, rerank_results: value }))} />
+                        <label htmlFor="rerank_results" className="text-sm">Rerank Results</label>
+                      </div>
                     </div>
-                    <Input value={webSearch.site_restriction} onChange={(e) => setWebSearch(prev => ({ ...prev, site_restriction: e.target.value }))} placeholder="site:techcrunch.com" />
+                  </TooltipProvider>
                   </div>
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <label className="text-sm font-medium">Region</label>
-                      <Tooltip><TooltipTrigger asChild><HelpCircle className="w-3 h-3" /></TooltipTrigger><TooltipContent>Localize search results</TooltipContent></Tooltip>
-                    </div>
-                    <Input value={webSearch.region} onChange={(e) => setWebSearch(prev => ({ ...prev, region: e.target.value }))} placeholder="us, br" />
-                  </div>
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <label className="text-sm font-medium">Language</label>
-                      <Tooltip><TooltipTrigger asChild><HelpCircle className="w-3 h-3" /></TooltipTrigger><TooltipContent>Set preferred result language</TooltipContent></Tooltip>
-                    </div>
-                    <Input value={webSearch.language} onChange={(e) => setWebSearch(prev => ({ ...prev, language: e.target.value }))} placeholder="en, pt-BR" />
-                  </div>
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <label className="text-sm font-medium">Number of Results</label>
-                      <Tooltip><TooltipTrigger asChild><HelpCircle className="w-3 h-3" /></TooltipTrigger><TooltipContent>Number of results to retrieve</TooltipContent></Tooltip>
-                    </div>
-                    <Input type="number" value={webSearch.num_results} onChange={(e) => setWebSearch(prev => ({ ...prev, num_results: e.target.value }))} placeholder="5" />
-                  </div>
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <label className="text-sm font-medium">Date Range</label>
-                      <Tooltip><TooltipTrigger asChild><HelpCircle className="w-3 h-3" /></TooltipTrigger><TooltipContent>Limit to a time period</TooltipContent></Tooltip>
-                    </div>
-                    <Input value={webSearch.date_range} onChange={(e) => setWebSearch(prev => ({ ...prev, date_range: e.target.value }))} placeholder="past 24 hours" />
-                  </div>
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <label className="text-sm font-medium">Exclude Keywords</label>
-                      <Tooltip><TooltipTrigger asChild><HelpCircle className="w-3 h-3" /></TooltipTrigger><TooltipContent>Filter out results with these keywords</TooltipContent></Tooltip>
-                    </div>
-                    <Input value={webSearch.exclude_keywords} onChange={(e) => setWebSearch(prev => ({ ...prev, exclude_keywords: e.target.value }))} placeholder="forum, reddit" />
-                  </div>
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <label className="text-sm font-medium">Query Boost</label>
-                      <Tooltip><TooltipTrigger asChild><HelpCircle className="w-3 h-3" /></TooltipTrigger><TooltipContent>Add weight to certain keywords</TooltipContent></Tooltip>
-                    </div>
-                    <Input value={webSearch.query_boost} onChange={(e) => setWebSearch(prev => ({ ...prev, query_boost: e.target.value }))} placeholder="official, 2025" />
-                  </div>
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <label className="text-sm font-medium">Follow Links Depth</label>
-                      <Tooltip><TooltipTrigger asChild><HelpCircle className="w-3 h-3" /></TooltipTrigger><TooltipContent>Depth for link crawling</TooltipContent></Tooltip>
-                    </div>
-                    <Input type="number" value={webSearch.follow_links_depth} onChange={(e) => setWebSearch(prev => ({ ...prev, follow_links_depth: e.target.value }))} placeholder="1" />
-                  </div>
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <label className="text-sm font-medium">Cache TTL</label>
-                      <Tooltip><TooltipTrigger asChild><HelpCircle className="w-3 h-3" /></TooltipTrigger><TooltipContent>Cache duration in seconds</TooltipContent></Tooltip>
-                    </div>
-                    <Input type="number" value={webSearch.cache_ttl} onChange={(e) => setWebSearch(prev => ({ ...prev, cache_ttl: e.target.value }))} placeholder="3600" />
-                  </div>
-                  <div className="flex items-center space-x-2 mt-2">
-                    <Checkbox id="safe_search" checked={webSearch.safe_search} onCheckedChange={(value) => setWebSearch(prev => ({ ...prev, safe_search: value }))} />
-                    <label htmlFor="safe_search" className="text-sm">Enable Safe Search</label>
-                  </div>
-                  <div className="flex items-center space-x-2 mt-2">
-                    <Checkbox id="rerank_results" checked={webSearch.rerank_results} onCheckedChange={(value) => setWebSearch(prev => ({ ...prev, rerank_results: value }))} />
-                    <label htmlFor="rerank_results" className="text-sm">Rerank Results</label>
-                  </div>
-                </div>
-              </TooltipProvider>
+              
+                  </TabsContent>
+                </Tabs>
               )}
+            </div>
           </TabsContent>
+
          
          <TabsContent value="functions">
               
@@ -1853,8 +1958,6 @@ const generateOpenAIResponsesAPIBody = () => {
                   onClick={() => {
                     const payload = generateOpenAIResponsesAPIBody();
                     console.log("Generated LLM Body:", payload);
-                    toast.success("LLM body generated in console and clipboard");
-                    navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
                     setGeneratedPayload(payload);
                     setIsModalOpen(true);
                   }}
@@ -1895,6 +1998,7 @@ const generateOpenAIResponsesAPIBody = () => {
                 <Tabs defaultValue="full" className="flex flex-col flex-1 overflow-hidden">
                   {/* Tab Headers */}
                   <TabsList className="border-b px-4 pt-2">
+                    <TabsTrigger value="payload">Payload</TabsTrigger>
                     <TabsTrigger value="full">Full Response</TabsTrigger>
                     <TabsTrigger value="text">Output Message</TabsTrigger>
                   </TabsList>
@@ -1902,6 +2006,40 @@ const generateOpenAIResponsesAPIBody = () => {
                   {/* Scrollable tab content container */}
                   <div className="flex-1 overflow-auto px-4 py-4">
                     
+                    {/* Payload Preview */}
+                    <TabsContent value="payload">
+                      <div className="relative">
+                        <div className="absolute top-0 right-0 m-2">
+                        <TooltipProvider delayDuration={100}>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    navigator.clipboard.writeText(JSON.stringify(generatedPayload, null, 2))
+                                  }
+                                  className="text-sm text-gray-500 hover:text-black"
+                                  title="Copy to clipboard"
+                                >
+                                  📋
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent>Copy to Clipboard</TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                      </div>
+
+                        <SyntaxHighlighter
+                          language="json"
+                          style={atomOneLight}
+                          customStyle={{ fontSize: 14 }}
+                        >
+                          {JSON.stringify(generatedPayload, null, 2)}
+                        </SyntaxHighlighter>
+                      </div>
+                    </TabsContent>
+
+
                     {/* Full Response */}
                     <TabsContent value="full">
                       <div className="relative">
@@ -1910,12 +2048,14 @@ const generateOpenAIResponsesAPIBody = () => {
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <button
-                                  onClick={() => {
-                                    const data = llmResponse
-                                      ? JSON.stringify(typeof llmResponse === "string" ? JSON.parse(llmResponse) : llmResponse, null, 2)
-                                      : JSON.stringify(generatedPayload, null, 2);
-                                    navigator.clipboard.writeText(data);
-                                    toast.success("Copied!")
+                                  oonClick={() => {
+                                    try {
+                                      const data = JSON.stringify(typeof llmResponse === "string" ? JSON.parse(llmResponse) : llmResponse, null, 2);
+                                      navigator.clipboard.writeText(data);
+                                      toast.success("Copied!");
+                                    } catch (err) {
+                                      toast.error("Failed to copy LLM response.");
+                                    }
                                   }}
                                   className="text-sm text-gray-500 hover:text-black"
                                   title="Copy to clipboard"
@@ -1929,14 +2069,12 @@ const generateOpenAIResponsesAPIBody = () => {
                         </div>
 
                         <SyntaxHighlighter
-                          language="json"
-                          style={atomOneLight}
-                          customStyle={{ fontSize: 14 }}
-                        >
-                          {llmResponse
-                            ? JSON.stringify(typeof llmResponse === "string" ? JSON.parse(llmResponse) : llmResponse, null, 2)
-                            : JSON.stringify(generatedPayload, null, 2)}
-                        </SyntaxHighlighter>
+                            language="json"
+                            style={atomOneLight}
+                            customStyle={{ fontSize: 14 }}
+                          >
+                            {llmResponse ? JSON.stringify(typeof llmResponse === "string" ? JSON.parse(llmResponse) : llmResponse, null, 2) : "No response available."}
+                          </SyntaxHighlighter>
                       </div>
                     </TabsContent>
 
@@ -1979,6 +2117,7 @@ const generateOpenAIResponsesAPIBody = () => {
                           customStyle={{ fontSize: 14 }}
                         >
                           {(() => {
+                            if (!llmResponse) return "No response available.";
                             try {
                               const parsed = typeof llmResponse === "string" ? JSON.parse(llmResponse) : llmResponse;
                               const messageBlock = parsed.output?.find(entry => entry.type === "message");
