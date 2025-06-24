@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
-import { X, Plus, CheckCircle, Code2, ArrowDown, ArrowRight, HelpCircle, Save, List, Check, ChevronDown } from "lucide-react";
+import { X, Plus, CheckCircle, Code2, ArrowDown, ArrowRight, HelpCircle, Save, List, Check, ChevronDown, Trash } from "lucide-react";
 import CodeMirror from "@uiw/react-codemirror";
 import { json } from "@codemirror/lang-json";
 import { python } from "@codemirror/lang-python";
@@ -1646,6 +1646,20 @@ const handleCreateVectorStore = async () => {
                         <TooltipTrigger asChild>
                           <button
                             type="button"
+                            onClick={() => setOutputExample("")}
+                            className="text-sm bg-gray-100 px-2 py-0.5 rounded hover:bg-gray-200 shadow"
+                          >
+                            <Trash size={16} className="text-red-500" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top">
+                          Clear
+                        </TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            type="button"
                             onClick={() => formatJson(setOutputExample, outputExample)}
                             className="text-sm bg-gray-100 px-2 py-0.5 rounded hover:bg-gray-200 shadow"
                           >
@@ -1713,6 +1727,20 @@ const handleCreateVectorStore = async () => {
                   <label className="block text-sm font-medium text-muted-foreground">JSON Schema (Optional)</label>
                   <div className="flex gap-2">
                     <TooltipProvider delayDuration={100}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            type="button"
+                            onClick={() => setJsonSchema("")}
+                            className="text-sm bg-gray-100 px-2 py-0.5 rounded hover:bg-gray-200 shadow"
+                          >
+                            <Trash size={16} className="text-red-500" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top">
+                          Clear
+                        </TooltipContent>
+                      </Tooltip>
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <button
@@ -2398,7 +2426,13 @@ const handleCreateVectorStore = async () => {
                               const messageBlock = parsed.output?.find(entry => entry.type === "message");
                               const outputText = messageBlock?.content?.find(c => c.type === "output_text")?.text;
                               if (!outputText) return "No structured output found in response.";
-                              return JSON.stringify(JSON.parse(outputText), null, 2);
+                              // Check if outputText is JSON
+                              try {
+                                const maybeJson = JSON.parse(outputText);
+                                return JSON.stringify(maybeJson, null, 2);
+                              } catch {
+                                return outputText; // Not JSON, return as-is
+                              }
                             } catch (err) {
                               return `Error parsing structured output:\n${err.message}`;
                             }
