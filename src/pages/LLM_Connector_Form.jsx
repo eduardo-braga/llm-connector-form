@@ -184,7 +184,8 @@ export default function AiApiCallForm() {
   const [temperature, setTemperature] = useState(0.1);
   const [top_p, setTop_p] = useState(0.9);
   const [top_k, setTop_k] = useState(50);
-  const [maxTokens, setMaxTokens] = useState("2048");
+  const [maxTokens, setMaxTokens] = useState(2048);
+  const [user, setUser] = useState("realm_env_pipeline_step");
   const [userPrompt, setUserPrompt] = useState("");
   const [showPromptDropdown, setShowPromptDropdown] = useState(false);
   const [systemPrompt, setSystemPrompt] = useState("");
@@ -421,6 +422,7 @@ const saveConnectorConfigToFile = () => {
       top_k,
       storeLogsProvider,
       maxTokens,
+      user,
       userPrompt,
       systemPrompt,
       allowWebSearch,
@@ -500,6 +502,7 @@ const importConnectorConfigFromFile = (event) => {
       setTop_p(config.top_p);
       setTop_k(config.top_k);
       setMaxTokens(config.maxTokens);
+      setUser(config.user);
       setStoreLogsProvider(config.storeLogsProvider);
       setUserPrompt(config.userPrompt);
       setSystemPrompt(config.systemPrompt);
@@ -698,6 +701,8 @@ const handleCreateVectorStore = async () => {
     model: selectedModel,
     temperature,
     top_p,
+    max_output_tokens: maxTokens,
+    user,
     background: backgroundMode || false,
     store: storeLogsProvider || false,
     input,
@@ -1149,7 +1154,7 @@ const handleCreateVectorStore = async () => {
                           className="!w-32"
                           placeholder="Ex: 2048"
                           value={maxTokens}
-                          onChange={(e) => setMaxTokens(e.target.value)}
+                          onChange={(e) => setMaxTokens(parseInt(e.target.value, 10))}
                         />
                       </div>
                     )}
@@ -1423,7 +1428,7 @@ const handleCreateVectorStore = async () => {
               
               <div className="space-y-1">
                 <label className="block text-sm font-medium text-muted-foreground">
-                  Select Vector Stores
+                  Vector Stores
                 </label>
 
                 <Popover>
@@ -2199,7 +2204,7 @@ const handleCreateVectorStore = async () => {
                     min="1"
                     placeholder="Leave blank for Never"
                     value={expiresInDays}
-                    onChange={(e) => setExpiresInDays(parseInt(e.target.value))}
+                    onChange={(e) => setExpiresInDays(parseInt(e.target.value,10))}
                     className="block w-full text-sm border border-gray-300 rounded p-2"
                   />
                 </div>
