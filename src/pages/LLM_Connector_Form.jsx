@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
-import { X, Plus, CheckCircle, Code2, ArrowDown, ArrowRight, HelpCircle, Save, List } from "lucide-react";
+import { X, Plus, CheckCircle, Code2, ArrowDown, ArrowRight, HelpCircle, Save, List, Check, ChevronDown } from "lucide-react";
 import CodeMirror from "@uiw/react-codemirror";
 import { json } from "@codemirror/lang-json";
 import { python } from "@codemirror/lang-python";
@@ -16,6 +16,9 @@ import { EditorView } from "@codemirror/view";
 import { Tooltip, TooltipTrigger, TooltipContent,TooltipProvider} from "@/components/ui/tooltip";
 import SyntaxHighlighter from "react-syntax-highlighter";
 import { atomOneLight } from "react-syntax-highlighter/dist/esm/styles/hljs";
+import { Popover, PopoverTrigger, PopoverContent} from "@/components/ui/popover";
+import { Command, CommandInput, CommandEmpty, CommandGroup, CommandItem} from "cmdk";
+
 import { countries } from "@/utils/countries";
 
 /*---------END OF IMPORTS-----------------------------------------------------------------------------------*/
@@ -185,7 +188,13 @@ export default function AiApiCallForm() {
   const [userPrompt, setUserPrompt] = useState("");
   const [showPromptDropdown, setShowPromptDropdown] = useState(false);
   const [systemPrompt, setSystemPrompt] = useState("");
-  const [fileInputs, setFileInputs] = useState([""]);
+  
+  const [uploadedFileIds, setUploadedFileIds] = useState([]);
+  const [vectorStores, setVectorStores] = useState([]);
+  const [selectedVectorStoreIds, setSelectedVectorStoreIds] = useState([]);
+  const [isVectorModalOpen, setIsVectorModalOpen] = useState(false);
+  const [vectorName, setVectorName] = useState("");
+  const [expiresInDays, setExpiresInDays] = useState("");
   
   const [allowWebSearch, setAllowWebSearch] = useState(false);
   const [webSearch, setWebSearch] = useState({search_engine: "google",site_restriction: "",region: "",language: "",num_results: 10,date_range: "",exclude_keywords: "",query_boost: "",follow_links_depth: 1,cache_ttl: 3600,safe_search: false,rerank_results: true});
@@ -211,18 +220,9 @@ export default function AiApiCallForm() {
   const [llmResponse, setLlmResponse] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  
+  const fileInputRef = useRef(null);
+
   const timezones = Intl.supportedValuesOf("timeZone");
-
-  const addFileInput = () => setFileInputs([...fileInputs, ""]);
-
-  const removeFileInput = (index) => setFileInputs(fileInputs.filter((_, i) => i !== index));
-
-  const handleFileInputChange = (index, value) => {
-    const updated = [...fileInputs];
-    updated[index] = value;
-    setFileInputs(updated);
-  };
 
   useEffect(() => {
     if (!sendToEvaluationTool) {
@@ -240,6 +240,26 @@ export default function AiApiCallForm() {
     }
   }, [provider]);
 
+  useEffect(() => {
+    const fetchVectorStores = async () => {
+      try {
+        const res = await fetch("/api/list-openai-vectorstores");
+        const data = await res.json();
+        setVectorStores(data.data || []); 
+      } catch (err) {
+        console.error("Failed to fetch vector stores:", err);
+      }
+    };
+
+    fetchVectorStores();
+  }, []);
+
+  const toggleStore = (id) => {
+    setSelectedVectorStoreIds((prev) =>
+      prev.includes(id) ? prev.filter((v) => v !== id) : [...prev, id]
+    );
+  };
+   
   const handleCategoryChange = (idx, newCategory) => {
     const firstType = evaluationCategories[newCategory]?.[0] || "";
     setEvaluations((prev) =>
@@ -403,10 +423,10 @@ const saveConnectorConfigToFile = () => {
       maxTokens,
       userPrompt,
       systemPrompt,
-      fileInputs,
       allowWebSearch,
       webSearch,
       webSearchParams,
+      selectedVectorStoreIds,
       toolChoice,
       tools: tools.map((tool) => ({
         ...tool,
@@ -457,9 +477,6 @@ const saveConnectorConfigToFile = () => {
   }
 };
 
-
-const fileInputRef = useRef(null);
-
 const handleImportClick = () => {
   fileInputRef.current?.click();
 };
@@ -486,10 +503,10 @@ const importConnectorConfigFromFile = (event) => {
       setStoreLogsProvider(config.storeLogsProvider);
       setUserPrompt(config.userPrompt);
       setSystemPrompt(config.systemPrompt);
-      setFileInputs(config.fileInputs || []);
       setAllowWebSearch(config.allowWebSearch);
       setWebSearch(config.webSearch || {});
       setWebSearchParams(config.webSearchParams || {});
+      setSelectedVectorStoreIds(config.selectedVectorStoreIds || {});
       setToolChoice(config.toolChoice);
       setTools(
         (config.tools || []).map((tool) => ({
@@ -524,7 +541,92 @@ const importConnectorConfigFromFile = (event) => {
   reader.readAsText(file);
 };
 
-const generateOpenAIResponsesAPIBody = () => {
+const allowedExtensions = [".csv", ".txt", ".pdf"];
+
+const handleFileUpload = async () => {
+  const file = fileInputRef.current?.files?.[0];
+
+  if (!file) {
+    toast.error("No file selected.");
+    return;
+  }
+
+  if (!["text/csv", "text/plain", "application/pdf"].includes(file.type)) {
+    toast.error("Only .csv, .txt, and .pdf files are allowed.");
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("purpose", "assistants");
+
+  try {
+    const res = await fetch("/api/upload-openai-file", {
+      method: "POST",
+      body: formData,
+    });
+
+    const result = await res.json();
+
+    if (!res.ok) {
+      throw new Error(result.error || "Upload failed");
+    }
+
+    toast.success("File uploaded!");
+    setUploadedFileIds((prev) => [...prev, result.id]);
+  } catch (err) {
+    toast.error(err.message || "Upload error.");
+  }
+};
+
+const handleCreateVectorStore = async () => {
+  if (!vectorName.trim()) {
+    toast.error("Vector name is required.");
+    return;
+  }
+
+  try {
+    const payload = {
+      name: vectorName,
+      file_ids: uploadedFileIds,
+      ...(expiresInDays && { expires_after: { anchor: "last_active_at", days: Number(expiresInDays) } })
+    };
+
+    console.log("Vector Store Payload:", JSON.stringify(payload));
+
+    const res = await fetch("/api/create-openai-vectorstore", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const result = await res.json();
+
+    if (!res.ok) {
+      throw new Error(result.error || "Vector store creation failed");
+    }
+
+    // Update the state with the new vector store
+    const newStore = { id: result.id, name: result.name || result.id };
+    setVectorStores((prev) => [...prev, newStore]);
+    setSelectedVectorStoreIds((prev) => [...prev, result.id]);
+
+    toast.success("Vector store created!");
+    setIsVectorModalOpen(false);
+    setUploadedFileIds([]);
+    setVectorName("");
+    setExpiresInDays(""); 
+
+  } catch (err) {
+    console.error("Failed to create vector store:", err);
+    toast.error(err.message || "Creation error.");
+  }
+};
+
+
+ const generateOpenAIResponsesAPIBody = () => {
   if (!userPrompt || userPrompt.trim() === "") {
     toast.error("Please enter a user prompt before generating the request body.");
     throw new Error("User prompt is required.");
@@ -592,8 +694,6 @@ const generateOpenAIResponsesAPIBody = () => {
 
   input.push({ role: "user", content: fullUserPrompt.trim() });
 
-  const validFileIds = (fileInputs || []).filter(id => typeof id === "string" && id.trim() !== "");
-
   const body = {
     model: selectedModel,
     temperature,
@@ -601,15 +701,17 @@ const generateOpenAIResponsesAPIBody = () => {
     background: backgroundMode || false,
     store: storeLogsProvider || false,
     input,
-    file_ids: validFileIds.length > 0 ? validFileIds : undefined,
     tool_choice: toolChoice,
     tools: [],
     response_format: undefined,
   };
 
   // Add file_search tool correctly
-  if (validFileIds.length > 0) {
-    body.tools.push({ type: "file_search"});
+  if (selectedVectorStoreIds.length > 0) {
+    body.tools.push({
+      type: "file_search",
+      vector_store_ids: selectedVectorStoreIds,
+    });
   }
 
   // Add web_search tool correctly
@@ -722,9 +824,10 @@ const generateOpenAIResponsesAPIBody = () => {
         
         {/* Connector Configuration */}
         <Tabs defaultValue="provider">
-          <TabsList className="grid w-full grid-cols-6 mb-2">
+          <TabsList className="grid w-full grid-cols-7 mb-2">
             <TabsTrigger value="provider" className="text-xs">Model & Input</TabsTrigger>
             <TabsTrigger value="web" className="text-xs">Web Search</TabsTrigger>
+            <TabsTrigger value="files" className="text-xs">Files Search</TabsTrigger>
             <TabsTrigger value="functions" className="text-xs">Tools</TabsTrigger>
             <TabsTrigger value="output" className="text-xs">Output</TabsTrigger>
             <TabsTrigger value="eval" className="text-xs">Evaluations</TabsTrigger>
@@ -836,10 +939,9 @@ const generateOpenAIResponsesAPIBody = () => {
               
               {/* Model & Input SubTabs */}
               <Tabs defaultValue="user">
-                <TabsList className="w-full mb-2 grid grid-cols-4">
+                <TabsList className="w-full mb-2 grid grid-cols-3">
                   <TabsTrigger value="user">User Prompt</TabsTrigger>
                   <TabsTrigger value="system">System Prompt</TabsTrigger>
-                  <TabsTrigger value="files">Files Input</TabsTrigger>
                   <TabsTrigger value="params">Parameters</TabsTrigger>
                 </TabsList>
                 
@@ -931,26 +1033,6 @@ const generateOpenAIResponsesAPIBody = () => {
                     rows={8} 
                     onChange={(e) => setSystemPrompt(e.target.value)}
                     placeholder="Define the AI's behavior, tone, personality, and boundaries here." />
-                </TabsContent>
-
-                {/* File Input SubTab */}
-                <TabsContent value="files">
-                  <p className="text-xs text-gray-500 italic mb-2">
-                          Use double braces <code className="font-mono text-gray-400">{'{{}}'}</code> to reference the files
-                      </p>
-                  {fileInputs.map((file, index) => (
-                    <div key={index} className="flex gap-2 items-center mb-2">
-                      <Input
-                        value={file}
-                        onChange={(e) => handleFileInputChange(index, e.target.value)}
-                        placeholder={`File path or id ${index + 1}`}
-                      />
-                      <Button variant="ghost" size="icon" onClick={() => removeFileInput(index)}><X size={16} /></Button>
-                    </div>
-                  ))}
-                  <Button variant="outline" onClick={addFileInput} className="mt-2 flex items-center gap-1">
-                    <Plus size={16} /> Add File
-                  </Button>
                 </TabsContent>
 
                 {/* Model Parameters SubTab*/}
@@ -1335,7 +1417,93 @@ const generateOpenAIResponsesAPIBody = () => {
             </div>
           </TabsContent>
 
-         
+           {/* Files Search Tab */}
+          <TabsContent value="files">
+            <div className="space-y-4">
+              
+              <div className="space-y-1">
+                <label className="block text-sm font-medium text-muted-foreground">
+                  Select Vector Stores
+                </label>
+
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      className="w-full px-3 py-2 border rounded-md flex items-center justify-between gap-2"
+                    >
+                      <div className="flex flex-wrap gap-1">
+                        {selectedVectorStoreIds.length === 0 ? (
+                          <span className="text-muted-foreground">Select vector stores...</span>
+                        ) : (
+                          selectedVectorStoreIds.map((id) => {
+                            const store = vectorStores.find((s) => s.id === id);
+                            return (
+                              <button
+                                  key={id}
+                                  type="button"
+                                  onClick={() => toggleStore(id)}
+                                  className="text-xs px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full hover:bg-purple-200 transition-colors"
+                                  title="Remove"
+                                >
+                                  {store?.name || id} ✕
+                              </button>
+                            );
+                          })
+                        )}
+                      </div>
+                      <ChevronDown className="w-4 h-4 text-gray-500" />
+                    </button>
+                  </PopoverTrigger>
+
+                  <PopoverContent side="bottom" align="start" className="w-[500px] p-2 bg-white border rounded-md shadow-md">
+                    <Command className="w-full max-h-[300px] overflow-y-auto">
+                      <div className="px-2 pt-2 pb-1">
+                        <CommandInput
+                          placeholder="Search vector stores..."
+                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        />
+                      </div>
+                      <CommandEmpty>No vector store found.</CommandEmpty>
+                      <CommandGroup>
+                          {vectorStores.map((store) => {
+                            const isSelected = selectedVectorStoreIds.includes(store.id);
+                            return (
+                              <CommandItem
+                                key={store.id}
+                                className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-gray-100"
+                                onSelect={() => toggleStore(store.id)} // <-- Use this instead
+                              >
+                                <div className="flex items-center gap-2 w-full">
+                                  <input
+                                    type="checkbox"
+                                    checked={isSelected}
+                                    readOnly
+                                    className="form-checkbox h-4 w-4 text-purple-600 border-gray-300 rounded"
+                                  />
+                                  <span>{store.name || store.id}</span>
+                                </div>
+                              </CommandItem>
+                            );
+                          })}
+                        </CommandGroup>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              <Button
+                variant="outline"
+                onClick={() => setIsVectorModalOpen(true)}
+                className="flex gap-2 items-center w-fit self-start"
+              >
+                <Plus size={18} /> New Vector Store
+              </Button>
+
+            </div>
+          </TabsContent>
+
+
          <TabsContent value="functions">
               
               <div className="space-y-4 mb-4">
@@ -1993,6 +2161,88 @@ const generateOpenAIResponsesAPIBody = () => {
           </TooltipProvider>
           )}
 
+          {/* Create New Vector Store */}
+          {isVectorModalOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+              <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-md">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-lg font-semibold">Create Vector Store</h2>
+                  <button
+                    className="text-gray-500 hover:text-gray-700"
+                    onClick={() => setIsVectorModalOpen(false)}
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                {/* Vector Name */}
+                <div className="mt-4">
+                  <label className="block text-sm font-medium text-muted-foreground mb-1">
+                    Vector Store Name
+                  </label>
+                  <input
+                    type="text"
+                    value={vectorName}
+                    onChange={(e) => setVectorName(e.target.value)}
+                    placeholder="e.g. Support FAQ"
+                    className="block w-full text-sm border border-gray-300 rounded p-2"
+                  />
+                </div>
+
+                {/* Expiration Days */}
+                <div className="mt-4">
+                  <label className="block text-sm font-medium text-muted-foreground mb-1">
+                    Expire After (Days)
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    placeholder="Leave blank for Never"
+                    value={expiresInDays}
+                    onChange={(e) => setExpiresInDays(parseInt(e.target.value))}
+                    className="block w-full text-sm border border-gray-300 rounded p-2"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-muted-foreground mb-1 mt-4">
+                    Upload Files
+                  </label>
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    accept=".csv,.txt,.pdf"
+                    multiple
+                    onChange={handleFileUpload}
+                    className="block w-full text-sm border border-gray-300 rounded p-2"
+                  />
+                </div>
+
+                {uploadedFileIds.length > 0 && (
+                  <div className="mt-4">
+                    <p className="text-sm font-medium text-muted-foreground mb-1">Uploaded File IDs:</p>
+                    <ul className="list-disc list-inside text-sm text-gray-700 space-y-1">
+                      {uploadedFileIds.map((id) => (
+                        <li key={id} className="break-all">{id}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                <div className="mt-6 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={handleCreateVectorStore}
+                    disabled={uploadedFileIds.length === 0 || vectorName.trim() === ""}
+                    className="px-4 py-2 text-sm bg-purple-600 text-white rounded hover:bg-purple-700 mr-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Create
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Modal */}
           {isModalOpen && (
             <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
@@ -2068,7 +2318,7 @@ const generateOpenAIResponsesAPIBody = () => {
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <button
-                                  oonClick={() => {
+                                  onClick={() => {
                                     try {
                                       const data = JSON.stringify(typeof llmResponse === "string" ? JSON.parse(llmResponse) : llmResponse, null, 2);
                                       navigator.clipboard.writeText(data);
