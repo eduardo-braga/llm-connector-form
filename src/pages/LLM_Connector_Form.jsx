@@ -45,8 +45,8 @@ const providerIcons = {
 const providerModels = {
   OpenAI: ["gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano", "o1-pro", "o1", "o3‑mini", "gpt-4o", "gpt-4o‑mini", "gpt-4.5-preview"],
   Anthropic: ["claude-3-opus","claude-3-sonnet","claude-3-haiku"],
-  Google: ["gemini-1.5-pro-latest","gemini-1.5-flash-latest","gemini-pro","gemini-pro-vision"],
-  DeepSeek: ["deepseek-coder","deepseek-coder-instruct","deepseek-chat"],
+  Google: ["gemini-1.5-pro-latest","gemini-1.5-flash-latest","gemini-pro"],
+  DeepSeek: ["deepseek-chat"],
   Custom: [""]
 };
 
@@ -187,6 +187,8 @@ export default function AiApiCallForm() {
   const [maxTokens, setMaxTokens] = useState(2048);
   const [user, setUser] = useState("realm_env_pipeline_step");
   const [userPrompt, setUserPrompt] = useState("");
+  const [moderateUserPrompt, setModerateUserPrompt] = useState(true);
+  
   const [showPromptDropdown, setShowPromptDropdown] = useState(false);
   const [systemPrompt, setSystemPrompt] = useState("");
   
@@ -204,8 +206,8 @@ export default function AiApiCallForm() {
   const [toolChoice, setToolChoice] = useState("auto");
   const [tools, setTools] = useState([]);
 
-  const [outputExample, setOutputExample] = useState("{\n  \"name\": \"John Doe\",\n  \"age\": 40,\n  \"active\": true,\n  \"hobbies\": [\"reading\",  \"gaming\",  \"music\" ]\n}");
-  const [jsonSchema, setJsonSchema] = useState(`{\n  \"type\": \"object\",\n  \"properties\": {\n    \"answer\": { \"type\": \"string\" }\n  }\n}`);
+  const [outputExample, setOutputExample] = useState('{\n  "answer": "LLM Output"\n}');
+  const [jsonSchema, setJsonSchema] = useState('{\n  "type": "object",\n  "properties": {\n    "answer": {\n      "type": "string"\n    }\n  },\n  "required": [\n    "answer"\n  ]\n}');
   const [outputValidation, setOutputValidation] = useState("");
   const [schemaValidation, setSchemaValidation] = useState("");
   
@@ -219,6 +221,7 @@ export default function AiApiCallForm() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [generatedPayload, setGeneratedPayload] = useState(null);
   const [llmResponse, setLlmResponse] = useState(null);
+  const [moderationResult, setModerationResult] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
 
   const fileInputRef = useRef(null);
@@ -424,6 +427,7 @@ const saveConnectorConfigToFile = () => {
       maxTokens,
       user,
       userPrompt,
+      moderateUserPrompt,
       systemPrompt,
       allowWebSearch,
       webSearch,
@@ -505,11 +509,12 @@ const importConnectorConfigFromFile = (event) => {
       setUser(config.user);
       setStoreLogsProvider(config.storeLogsProvider);
       setUserPrompt(config.userPrompt);
+      setModerateUserPrompt(config.moderateUserPrompt);
       setSystemPrompt(config.systemPrompt);
       setAllowWebSearch(config.allowWebSearch);
       setWebSearch(config.webSearch || {});
       setWebSearchParams(config.webSearchParams || {});
-      setSelectedVectorStoreIds(config.selectedVectorStoreIds || {});
+      setSelectedVectorStoreIds(config.selectedVectorStoreIds || []);
       setToolChoice(config.toolChoice);
       setTools(
         (config.tools || []).map((tool) => ({
@@ -628,6 +633,23 @@ const handleCreateVectorStore = async () => {
   }
 };
 
+  const runModerationCheck = async (inputText) => {
+    try {
+      const res = await fetch('/api/openai-moderations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ input: inputText })
+      });
+
+      const result = await res.json();
+      setModerationResult(result);
+      return result;
+    } catch (err) {
+      console.error("Moderation failed", err);
+      setModerationResult({ error: "Failed to check moderation" });
+      return null;
+    }
+  };
 
  const generateOpenAIResponsesAPIBody = () => {
   if (!userPrompt || userPrompt.trim() === "") {
@@ -708,7 +730,15 @@ const handleCreateVectorStore = async () => {
     input,
     tool_choice: toolChoice,
     tools: [],
-    response_format: undefined,
+    /*evaluation: [
+      {
+        name: "population_score",
+        type: "modelgraded_score",
+        instructions: "Score the number of people in each contry",
+        score_scale: [0,1],
+        explanation_required: true,
+      },
+    ],*/
   };
 
   // Add file_search tool correctly
@@ -776,20 +806,19 @@ const handleCreateVectorStore = async () => {
   // Add custom tools
   if (tools && tools.length > 0) {
     tools.forEach((tool) => {
-      // Function tool
+      // Function tool for /v1/responses
       if (tool.toolType === "function" && tool.name && tool.parameters) {
         try {
-          const parsedParams = typeof tool.parameters === "string"
-            ? JSON.parse(tool.parameters)
-            : tool.parameters;
+          const parsedParams =
+            typeof tool.parameters === "string"
+              ? JSON.parse(tool.parameters)
+              : tool.parameters;
 
           body.tools.push({
             type: "function",
-            function: {
-              name: tool.name,
-              description: tool.description || "",
-              parameters: parsedParams,
-            },
+            name: tool.name,
+            description: tool.description || "",
+            parameters: parsedParams,
           });
         } catch (err) {
           toast.error(`Invalid JSON in parameters for function "${tool.name}".`);
@@ -815,6 +844,7 @@ const handleCreateVectorStore = async () => {
       }
     });
   }
+
 
   return body;
 };
@@ -1028,6 +1058,23 @@ const handleCreateVectorStore = async () => {
                       onChange={(e) => setUserPrompt(e.target.value)}
                       placeholder="What do you want to do?"
                     />
+
+                    <div className="flex items-center gap-4 mt-4">
+                      <label className="block text-sm font-medium text-muted-foreground">Moderate User Prompt?</label>
+                      <label className="inline-flex items-center cursor-pointer">
+                        <span className="relative">
+                          <input
+                              type="checkbox"
+                              checked={moderateUserPrompt}
+                              onChange={(e) => setModerateUserPrompt(e.target.checked)}
+                              className="sr-only peer"
+                            />
+                          <div className="w-11 h-6 bg-gray-300 rounded-full peer-checked:bg-black transition-all duration-300"></div>
+                          <div className="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-md transform peer-checked:translate-x-full transition-transform duration-300"></div>
+                        </span>
+                      </label>
+                    </div>
+
                   </div>
                 </TabsContent>
 
@@ -2123,11 +2170,26 @@ const handleCreateVectorStore = async () => {
             size="lg"
             disabled={isLoading}
             onClick={async () => {
-              toast("Running connector...");
               setIsLoading(true);
-              const payload = generateOpenAIResponsesAPIBody();
-              setGeneratedPayload(payload);
+
               try {
+                
+                const payload = generateOpenAIResponsesAPIBody();
+                setGeneratedPayload(payload);
+
+                if(moderateUserPrompt){
+                  const moderation = await runModerationCheck(userPrompt);
+                  setModerationResult(moderation);
+                  if (moderation?.results?.[0]?.flagged) {
+                    setIsLoading(false);
+                    setIsModalOpen(true);
+                    toast.error("Prompt was flagged by OpenAI moderation.");
+                    return;
+                  }
+                } else {
+                   setModerationResult("Moderation wasn't requested"); 
+                }
+
                 const response = await fetch("/api/openai_api_call", {
                   method: "POST",
                   headers: {
@@ -2159,7 +2221,6 @@ const handleCreateVectorStore = async () => {
                 }
               } catch (err) {
                 console.error("Unexpected fetch error:", err);
-                toast.error("Unexpected error occurred.");
                 } finally {
                   setIsLoading(false);
                 }
@@ -2302,6 +2363,7 @@ const handleCreateVectorStore = async () => {
                   {/* Tab Headers */}
                   <TabsList className="border-b px-4 pt-2">
                     <TabsTrigger value="payload">Payload</TabsTrigger>
+                    <TabsTrigger value="moderation">Moderation</TabsTrigger>
                     <TabsTrigger value="full">Full Response</TabsTrigger>
                     <TabsTrigger value="text">Output Message</TabsTrigger>
                   </TabsList>
@@ -2342,6 +2404,20 @@ const handleCreateVectorStore = async () => {
                       </div>
                     </TabsContent>
 
+                    {/* Moderation */}
+                    <TabsContent value="moderation">
+                      <div className="space-y-2">
+                        <SyntaxHighlighter
+                          language="json"
+                          style={atomOneLight}
+                          customStyle={{ fontSize: 14 }}
+                        >
+                          {moderationResult?.results
+                            ? JSON.stringify(moderationResult.results[0], null, 2)
+                            : "No moderation result available"}
+                        </SyntaxHighlighter>
+                      </div>
+                    </TabsContent>
 
                     {/* Full Response */}
                     <TabsContent value="full">
@@ -2377,7 +2453,7 @@ const handleCreateVectorStore = async () => {
                             customStyle={{ fontSize: 14 }}
                           >
                             {llmResponse ? JSON.stringify(typeof llmResponse === "string" ? JSON.parse(llmResponse) : llmResponse, null, 2) : "No response available."}
-                          </SyntaxHighlighter>
+                        </SyntaxHighlighter>
                       </div>
                     </TabsContent>
 
